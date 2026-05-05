@@ -88,6 +88,7 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory version
 ./dreamfactory doctor
 ./dreamfactory login --email you@company.example --password YourPassword123456
+./dreamfactory service supported-types
 ./dreamfactory service list-types --email you@company.example --password YourPassword123456
 ./dreamfactory service plan pgsql > service.json
 ./dreamfactory service apply --file service.json --email you@company.example --password YourPassword123456
@@ -121,6 +122,7 @@ without scraping docs.
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai plan-service soap
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"
+./dreamfactory ai supported-service-types
 ./dreamfactory ai list-service-types --session-token "$TOKEN"
 ./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
 ./dreamfactory ai login \

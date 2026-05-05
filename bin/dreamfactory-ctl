@@ -8,6 +8,7 @@
 #   dreamfactory doctor                  Check binary runtime readiness
 #   dreamfactory version                 Print package version metadata
 #   dreamfactory login                   Login and print session JSON
+#   dreamfactory service supported-types List quickstart-supported service types
 #   dreamfactory service list-types      List available service types
 #   dreamfactory service plan TYPE       Print a service payload template
 #   dreamfactory service apply --file F  Create a service from JSON
@@ -647,11 +648,53 @@ JSON
   esac
 }
 
+supported_service_types() {
+  cat <<'JSON'
+{
+  "resource": [
+    {
+      "name": "pgsql",
+      "label": "PostgreSQL",
+      "command": "dreamfactory service plan pgsql"
+    },
+    {
+      "name": "mysql",
+      "label": "MySQL / MariaDB",
+      "command": "dreamfactory service plan mysql"
+    },
+    {
+      "name": "sqlsrv",
+      "label": "SQL Server",
+      "command": "dreamfactory service plan sqlsrv"
+    },
+    {
+      "name": "sqlite",
+      "label": "SQLite",
+      "command": "dreamfactory service plan sqlite"
+    },
+    {
+      "name": "rws",
+      "label": "Remote REST API",
+      "command": "dreamfactory service plan rws"
+    },
+    {
+      "name": "soap",
+      "label": "SOAP",
+      "command": "dreamfactory service plan soap"
+    }
+  ]
+}
+JSON
+}
+
 cmd_service() {
   local subcommand="${1:-help}"
   [ $# -gt 0 ] && shift || true
 
   case "$subcommand" in
+    supported-types|supported)
+      supported_service_types
+      ;;
     list-types|types)
       require_curl
       local url="$(api_url)"
@@ -741,6 +784,7 @@ cmd_service() {
       ;;
     help|--help|-h)
       echo "Usage:"
+      echo "  dreamfactory service supported-types"
       echo "  dreamfactory service list-types [--email EMAIL --password PASSWORD]"
       echo "  dreamfactory service plan TYPE"
       echo "  dreamfactory service apply --file service.json [--email EMAIL --password PASSWORD]"
@@ -784,12 +828,14 @@ cmd_ai() {
     "login": "Exchange admin credentials for a session token",
     "plan-service": "Emit a service creation payload template",
     "apply-service": "Create a service from a JSON file",
+    "supported-service-types": "List quickstart-supported service types",
     "list-service-types": "List available service types",
     "inspect-service": "Inspect table metadata for a service"
   },
   "human_commands": {
     "login": "Login and print session JSON",
     "service list-types": "List available service types",
+    "service supported-types": "List quickstart-supported service types",
     "service plan": "Print a service creation payload template",
     "service apply": "Create a service from JSON",
     "service inspect": "Inspect table metadata for a service"
@@ -805,6 +851,9 @@ JSON
       ;;
     apply-service)
       cmd_service apply "$@"
+      ;;
+    supported-service-types)
+      cmd_service supported-types
       ;;
     list-service-types)
       cmd_service list-types "$@"
@@ -869,6 +918,7 @@ case "${1:-serve}" in
     echo "  dreamfactory doctor                Check runtime readiness"
     echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory login                 Login and print session JSON"
+    echo "  dreamfactory service supported-types List quickstart-supported service types"
     echo "  dreamfactory service list-types    List available service types"
     echo "  dreamfactory service plan TYPE     Print service payload template"
     echo "  dreamfactory service apply --file F Create a service from JSON"
@@ -878,6 +928,7 @@ case "${1:-serve}" in
     echo "  dreamfactory ai login              Login and print session JSON"
     echo "  dreamfactory ai plan-service TYPE  Print service payload template"
     echo "  dreamfactory ai apply-service --file F Create a service from JSON"
+    echo "  dreamfactory ai supported-service-types List quickstart-supported service types"
     echo "  dreamfactory migrate               Run database migrations"
     echo "  dreamfactory artisan [...]          Run any artisan command"
     echo ""

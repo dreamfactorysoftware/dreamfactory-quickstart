@@ -39,6 +39,12 @@ Use `DREAMFACTORY_URL` when the API is not at `http://localhost:8080/api/v2`.
 
 ## Services
 
+List quickstart-supported service types:
+
+```bash
+./dreamfactory service supported-types
+```
+
 List available service types:
 
 ```bash
@@ -79,6 +85,7 @@ The `ai` namespace keeps stable machine-readable aliases:
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"
+./dreamfactory ai supported-service-types
 ./dreamfactory ai list-service-types --session-token "$TOKEN"
 ./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
 ```
