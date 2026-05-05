@@ -6,6 +6,7 @@
 #   dreamfactory serve [--port PORT]     Start the API server
 #   dreamfactory setup                   Run first-time setup interactively
 #   dreamfactory doctor                  Check binary runtime readiness
+#   dreamfactory version                 Print package version metadata
 #   dreamfactory reset-admin             Create or reset the admin user
 #   dreamfactory ai spec                 Print machine-readable AI helper spec
 #   dreamfactory migrate                 Run database migrations
@@ -380,6 +381,19 @@ cmd_doctor() {
   return "$failures"
 }
 
+cmd_version() {
+  local version_file="$SCRIPT_DIR/VERSION"
+  local release_file="$SCRIPT_DIR/release.json"
+
+  if [ -f "$release_file" ]; then
+    cat "$release_file"
+  elif [ -f "$version_file" ]; then
+    printf 'DreamFactory Quickstart %s\n' "$(cat "$version_file")"
+  else
+    echo "DreamFactory Quickstart version metadata unavailable"
+  fi
+}
+
 cmd_reset_admin() {
   init_storage
   local email="$(admin_email)"
@@ -583,6 +597,9 @@ case "${1:-serve}" in
   doctor)
     cmd_doctor
     ;;
+  version|--version|-v)
+    cmd_version
+    ;;
   reset-admin)
     shift
     cmd_reset_admin "$@"
@@ -606,6 +623,7 @@ case "${1:-serve}" in
     echo "  dreamfactory serve [--host HOST] [--port PORT] [--admin-email EMAIL] [--admin-password PASSWORD]"
     echo "  dreamfactory setup [--admin-email EMAIL] [--admin-password PASSWORD]"
     echo "  dreamfactory doctor                Check runtime readiness"
+    echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory reset-admin           Create or reset the admin user"
     echo "  dreamfactory ai spec               Print AI helper capabilities"
     echo "  dreamfactory ai login              Login and print session JSON"

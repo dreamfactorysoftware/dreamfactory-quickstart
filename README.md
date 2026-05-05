@@ -39,6 +39,9 @@ The first binary profile is Linux x86_64 and includes:
 
 ## Quickstart From A Release Archive
 
+The release path is designed for a new user who wants to evaluate DreamFactory
+without building from source.
+
 ```bash
 tar xzf dreamfactory-quickstart-linux-x86_64.tar.gz
 cd dreamfactory-quickstart
@@ -56,6 +59,9 @@ Persistent data defaults to `~/.dreamfactory`. Override it with:
 DREAMFACTORY_STORAGE=/opt/dreamfactory-data ./dreamfactory serve
 ```
 
+See [docs/RELEASE_QUICKSTART.md](docs/RELEASE_QUICKSTART.md) for checksum
+verification, health checks, admin reset, and release metadata.
+
 ## Build Locally
 
 This build needs Docker. Private DreamFactory package access may require a
@@ -71,11 +77,15 @@ Build outputs:
 - `dist/dreamfactory-linux-x86_64`: raw embedded FrankenPHP binary
 - `dist/dreamfactory-quickstart/`: runnable package directory
 - `dist/dreamfactory-quickstart-linux-x86_64.tar.gz`: release archive
+- `dist/SHA256SUMS`: checksums for release verification
+
+The archive includes `VERSION` and `release.json` metadata.
 
 ## Runtime Commands
 
 ```bash
 ./dreamfactory help
+./dreamfactory version
 ./dreamfactory doctor
 ./dreamfactory reset-admin --email you@company.example --password NewPassword123456
 ./dreamfactory artisan route:list

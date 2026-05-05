@@ -41,9 +41,10 @@ shape:
 ## Ship The First Internal Demo
 
 - Keep release archive naming stable: `dreamfactory-quickstart-linux-x86_64.tar.gz`.
-- Add a checksum file and version metadata.
+- Add a checksum file and version metadata. (Done locally; validate on next
+  full build.)
 - Add a demo SQL Server recipe with sample data and service creation commands.
-- Add a clean Ubuntu install walkthrough.
+- Add a clean Ubuntu install walkthrough. (Started with release quickstart.)
 - Confirm fresh host behavior with no system ODBC install.
 - Record known limitations and support boundaries.
 
