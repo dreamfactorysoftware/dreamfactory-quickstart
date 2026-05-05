@@ -36,6 +36,8 @@ The first binary profile is Linux x86_64 and includes:
 - Remote Web Services connector
 - SOAP connector
 - Early CLI framework for AI-assisted API configuration
+- Optional MCP-enabled artifact with bundled `df-mcp-server` daemon and Node
+  runtime
 
 ## Quickstart From A Release Archive
 
@@ -72,6 +74,13 @@ GITHUB_TOKEN="$(gh auth token)" ./build-binary.sh
 ./smoke-binary.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
 ```
 
+Build the MCP-enabled artifact used for agent/client evaluations:
+
+```bash
+INCLUDE_MCP=true GITHUB_TOKEN="$(gh auth token)" ./build-binary.sh
+./smoke-binary.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
+```
+
 Build outputs:
 
 - `dist/dreamfactory-linux-x86_64`: raw embedded FrankenPHP binary
@@ -87,6 +96,8 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory help
 ./dreamfactory version
 ./dreamfactory doctor
+./dreamfactory serve --with-mcp
+./dreamfactory mcp doctor
 ./dreamfactory login --email you@company.example --password YourPassword123456
 ./dreamfactory demo pgsql \
   --db-host localhost \

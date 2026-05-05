@@ -6,6 +6,7 @@
 #   ./build-binary.sh                  Build linux/amd64 binary
 #   BRANCH=develop ./build-binary.sh   Build from a specific DF branch
 #   VERSION=0.1.0 ./build-binary.sh    Stamp release metadata
+#   INCLUDE_MCP=true ./build-binary.sh  Package df-mcp-server and bundled daemon
 #   SKIP_DOCKER_BUILD=true ./build-binary.sh  Repackage existing dist binary
 #
 # Output: ./dist/dreamfactory-linux-x86_64
@@ -18,6 +19,8 @@ IMAGE_NAME="dreamfactory-quickstart-static"
 CONTAINER_NAME="dreamfactory-quickstart-static-tmp"
 BINARY_SRC="/go/src/app/dist/frankenphp-linux-x86_64"
 ODBC_SRC="/go/src/app/dist/odbc-runtime"
+MCP_DAEMON_SRC="/go/src/app/dist/mcp-daemon"
+NODE_RUNTIME_SRC="/go/src/app/dist/node-runtime"
 BINARY_DST="$DIST_DIR/dreamfactory-linux-x86_64"
 
 BRANCH="${BRANCH:-master}"
@@ -25,6 +28,8 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 VERSION="${VERSION:-0.1.0-dev}"
 PLATFORM="${PLATFORM:-linux-x86_64}"
 SKIP_DOCKER_BUILD="${SKIP_DOCKER_BUILD:-false}"
+INCLUDE_MCP="${INCLUDE_MCP:-false}"
+MCP_PACKAGE_DIR="${MCP_PACKAGE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-mcp-server}"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 
@@ -33,14 +38,32 @@ echo "  Building DreamFactory Quickstart Binary"
 echo "  Branch: $BRANCH"
 echo "  Version: $VERSION"
 echo "  Platform: $PLATFORM"
+echo "  Include MCP: $INCLUDE_MCP"
 echo "  Skip Docker build: $SKIP_DOCKER_BUILD"
 echo "============================================"
 echo ""
 
 mkdir -p "$DIST_DIR"
+rm -rf "$SCRIPT_DIR/.build/df-mcp-server"
+mkdir -p "$SCRIPT_DIR/.build/df-mcp-server"
+
+if [ "$INCLUDE_MCP" = "true" ]; then
+  if [ ! -f "$MCP_PACKAGE_DIR/composer.json" ] || [ ! -f "$MCP_PACKAGE_DIR/daemon/package.json" ]; then
+    echo "MCP package not found at $MCP_PACKAGE_DIR" >&2
+    echo "Set MCP_PACKAGE_DIR=/path/to/df-mcp-server or run with INCLUDE_MCP=false." >&2
+    exit 1
+  fi
+  echo "Preparing MCP package from $MCP_PACKAGE_DIR"
+  tar \
+    --exclude='.git' \
+    --exclude='daemon/node_modules' \
+    --exclude='vendor' \
+    -C "$MCP_PACKAGE_DIR" \
+    -cf - . | tar -C "$SCRIPT_DIR/.build/df-mcp-server" -xf -
+fi
 
 # Build args
-BUILD_ARGS="--build-arg BRANCH=$BRANCH"
+BUILD_ARGS="--build-arg BRANCH=$BRANCH --build-arg INCLUDE_MCP=$INCLUDE_MCP"
 SECRET_ARGS=()
 if [ -n "$GITHUB_TOKEN" ]; then
   SECRET_ARGS=(--secret id=github_token,env=GITHUB_TOKEN)
@@ -55,6 +78,12 @@ if [ "$SKIP_DOCKER_BUILD" = "true" ]; then
   if [ ! -d "$DIST_DIR/odbc-runtime" ]; then
     echo "Missing existing ODBC runtime: $DIST_DIR/odbc-runtime" >&2
     exit 1
+  fi
+  if [ "$INCLUDE_MCP" = "true" ]; then
+    if [ ! -d "$DIST_DIR/mcp-daemon" ] || [ ! -x "$DIST_DIR/node-runtime/bin/node" ]; then
+      echo "Missing existing MCP daemon or Node runtime in dist/. Rebuild without SKIP_DOCKER_BUILD first." >&2
+      exit 1
+    fi
   fi
 else
   echo "[1/3] Building static binary (this takes a while)..."
@@ -72,6 +101,9 @@ else
   docker cp "$CONTAINER_ID:$BINARY_SRC" "$BINARY_DST"
   rm -rf "$DIST_DIR/odbc-runtime"
   docker cp "$CONTAINER_ID:$ODBC_SRC" "$DIST_DIR/odbc-runtime"
+  rm -rf "$DIST_DIR/mcp-daemon" "$DIST_DIR/node-runtime"
+  docker cp "$CONTAINER_ID:$MCP_DAEMON_SRC" "$DIST_DIR/mcp-daemon"
+  docker cp "$CONTAINER_ID:$NODE_RUNTIME_SRC" "$DIST_DIR/node-runtime"
   docker rm "$CONTAINER_NAME"
 fi
 
@@ -94,7 +126,12 @@ mkdir -p "$STAGING"
 cp "$BINARY_DST" "$STAGING/frankenphp"
 cp "$SCRIPT_DIR/bin/dreamfactory-ctl" "$STAGING/dreamfactory"
 cp -a "$DIST_DIR/odbc-runtime" "$STAGING/odbc"
+if [ "$INCLUDE_MCP" = "true" ]; then
+  cp -a "$DIST_DIR/mcp-daemon" "$STAGING/mcp-daemon"
+  cp -a "$DIST_DIR/node-runtime" "$STAGING/node"
+fi
 chmod +x "$STAGING/dreamfactory" "$STAGING/frankenphp"
+[ "$INCLUDE_MCP" != "true" ] || chmod +x "$STAGING/node/bin/node"
 
 printf '%s\n' "$VERSION" > "$STAGING/VERSION"
 cat > "$STAGING/release.json" <<JSON
@@ -105,6 +142,7 @@ cat > "$STAGING/release.json" <<JSON
   "dreamfactory_branch": "$BRANCH",
   "quickstart_commit": "$GIT_COMMIT",
   "build_date": "$BUILD_DATE",
+  "mcp_enabled": $([ "$INCLUDE_MCP" = "true" ] && printf true || printf false),
   "entrypoint": "./dreamfactory serve",
   "storage_env": "DREAMFACTORY_STORAGE",
   "default_storage": "~/.dreamfactory"

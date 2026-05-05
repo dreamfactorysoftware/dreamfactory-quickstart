@@ -36,6 +36,21 @@ http://localhost:8080/
 The first run initializes `~/.dreamfactory`, runs migrations, creates the admin
 user, and starts the API and Admin UI.
 
+For MCP-enabled archives, start the API and bundled MCP daemon together:
+
+```bash
+./dreamfactory serve --with-mcp \
+  --admin-email you@company.example \
+  --admin-password YourPassword123456
+```
+
+The daemon defaults to `http://127.0.0.1:8006`. Check it from the unpacked
+directory:
+
+```bash
+./dreamfactory mcp doctor
+```
+
 ## Persistent Data
 
 Default storage:
@@ -113,6 +128,8 @@ Each archive includes:
 - `VERSION`: package version
 - `release.json`: platform, build date, DreamFactory branch, and quickstart
   commit
+- `mcp_enabled` in `release.json`: whether the archive includes the MCP daemon
+  and bundled Node runtime
 
 The user-facing command stays the same as more platforms are added:
 

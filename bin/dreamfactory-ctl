@@ -4,8 +4,11 @@
 #
 # Usage:
 #   dreamfactory serve [--port PORT]     Start the API server
+#   dreamfactory serve --with-mcp        Start the API server and bundled MCP daemon
 #   dreamfactory setup                   Run first-time setup interactively
 #   dreamfactory doctor                  Check binary runtime readiness
+#   dreamfactory mcp doctor              Check bundled MCP daemon readiness
+#   dreamfactory mcp serve               Start only the bundled MCP daemon
 #   dreamfactory version                 Print package version metadata
 #   dreamfactory login                   Login and print session JSON
 #   dreamfactory demo pgsql              Create and register a PostgreSQL demo
@@ -26,6 +29,7 @@
 #   ADMIN_PASSWORD        Admin password for first-run setup (min 16 chars)
 #   LISTEN_HOST           Host to bind (default: 0.0.0.0)
 #   SERVER_PORT           Port to listen on (default: 8080)
+#   MCP_DAEMON_PORT       MCP daemon port (default: 8006)
 #   DREAMFACTORY_URL      API URL for CLI calls (default: http://localhost:8080/api/v2)
 #   DREAMFACTORY_SESSION_TOKEN  Session token for authenticated CLI calls
 
@@ -49,6 +53,9 @@ fi
 
 STORAGE="${DREAMFACTORY_STORAGE:-$HOME/.dreamfactory}"
 export LARAVEL_STORAGE_PATH="$STORAGE"
+MCP_DAEMON_DIR="$SCRIPT_DIR/mcp-daemon"
+MCP_NODE="$SCRIPT_DIR/node/bin/node"
+MCP_PID=""
 
 configure_bundled_odbc() {
   local odbc_dir="$SCRIPT_DIR/odbc"
@@ -72,6 +79,16 @@ ODBC
 
 configure_bundled_odbc
 
+configure_bundled_node() {
+  local node_dir="$SCRIPT_DIR/node"
+
+  if [ -x "$MCP_NODE" ]; then
+    export LD_LIBRARY_PATH="$node_dir/lib:${LD_LIBRARY_PATH:-}"
+  fi
+}
+
+configure_bundled_node
+
 require_frankenphp() {
   if [ -z "$FRANKENPHP" ]; then
     echo "Error: frankenphp binary not found" >&2
@@ -79,6 +96,80 @@ require_frankenphp() {
   fi
   if [ ! -x "$FRANKENPHP" ] && ! command -v "$FRANKENPHP" >/dev/null 2>&1; then
     echo "Error: frankenphp binary not found" >&2
+    return 1
+  fi
+}
+
+mcp_node() {
+  if [ -x "$MCP_NODE" ]; then
+    printf '%s' "$MCP_NODE"
+  elif command -v node >/dev/null 2>&1; then
+    command -v node
+  else
+    return 1
+  fi
+}
+
+require_mcp() {
+  if [ ! -f "$MCP_DAEMON_DIR/dist/server.js" ]; then
+    echo "Error: bundled MCP daemon not found. Use an MCP-enabled DreamFactory artifact." >&2
+    return 1
+  fi
+  if ! mcp_node >/dev/null 2>&1; then
+    echo "Error: node runtime not found. Use an MCP-enabled artifact with bundled Node." >&2
+    return 1
+  fi
+}
+
+mcp_url() {
+  printf 'http://%s:%s' "${MCP_DAEMON_HOST:-127.0.0.1}" "${MCP_DAEMON_PORT:-8006}"
+}
+
+stop_mcp_daemon() {
+  if [ -n "$MCP_PID" ] && kill -0 "$MCP_PID" 2>/dev/null; then
+    kill "$MCP_PID" 2>/dev/null || true
+    wait "$MCP_PID" 2>/dev/null || true
+  fi
+}
+
+start_mcp_daemon() {
+  require_mcp
+  init_storage
+
+  local host="${MCP_DAEMON_HOST:-127.0.0.1}"
+  local port="${MCP_DAEMON_PORT:-8006}"
+  local base_url="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}/api/v2}"
+  local log="$STORAGE/logs/mcp-daemon.log"
+  local node_bin
+  node_bin="$(mcp_node)"
+
+  export MCP_DAEMON_ENABLED="${MCP_DAEMON_ENABLED:-true}"
+  export MCP_DAEMON_HOST="$host"
+  export MCP_DAEMON_PORT="$port"
+  export MCP_DAEMON_URL="${MCP_DAEMON_URL:-http://$host:$port}"
+  export MCP_INTERNAL_BASE_URL="$base_url"
+
+  mkdir -p "$STORAGE/logs"
+  (
+    cd "$MCP_DAEMON_DIR"
+    exec "$node_bin" dist/server.js
+  ) >>"$log" 2>&1 &
+  MCP_PID="$!"
+
+  if command -v curl >/dev/null 2>&1; then
+    for _ in $(seq 1 30); do
+      if ! kill -0 "$MCP_PID" 2>/dev/null; then
+        echo "MCP daemon exited early. Last log lines:" >&2
+        tail -40 "$log" >&2 || true
+        return 1
+      fi
+      if curl -fsS "$(mcp_url)/health" >/dev/null 2>&1; then
+        return 0
+      fi
+      sleep 1
+    done
+    echo "Timed out waiting for MCP daemon at $(mcp_url). Last log lines:" >&2
+    tail -40 "$log" >&2 || true
     return 1
   fi
 }
@@ -301,6 +392,7 @@ cmd_serve() {
   require_frankenphp
   local port="${SERVER_PORT:-8080}"
   local host="${LISTEN_HOST:-0.0.0.0}"
+  local with_mcp="${WITH_MCP:-false}"
   local setup_args=()
 
   # Parse --port flag
@@ -310,6 +402,9 @@ cmd_serve() {
       --host=*) host="${1#*=}"; shift ;;
       --port) port="$2"; shift 2 ;;
       --port=*) port="${1#*=}"; shift ;;
+      --with-mcp) with_mcp="true"; shift ;;
+      --mcp-port) export MCP_DAEMON_PORT="$2"; shift 2 ;;
+      --mcp-port=*) export MCP_DAEMON_PORT="${1#*=}"; shift ;;
       --admin-email|--email)
         setup_args+=("--admin-email" "$2")
         shift 2
@@ -335,9 +430,14 @@ cmd_serve() {
   done
 
   init_storage
+  export SERVER_PORT="$port"
 
   if needs_setup; then
     run_setup "${setup_args[@]}"
+  fi
+
+  if [ "$with_mcp" = "true" ]; then
+    start_mcp_daemon
   fi
 
   echo ""
@@ -345,6 +445,9 @@ cmd_serve() {
   echo "  DreamFactory Quickstart"
   echo "  Admin UI: http://localhost:$port/"
   echo "  API:      http://localhost:$port/api/v2"
+  if [ "$with_mcp" = "true" ]; then
+    echo "  MCP:      $(mcp_url)"
+  fi
   echo "  Listen:   http://$host:$port"
   echo "  Storage:  $STORAGE"
   echo "============================================"
@@ -352,7 +455,22 @@ cmd_serve() {
 
   # FrankenPHP cd's into the embedded app dir at startup, so relative Caddy
   # roots point to the Laravel app within the embed.
-  exec $FRANKENPHP run --config "$(write_caddyfile "$host" "$port")"
+  if [ "$with_mcp" = "true" ]; then
+    local franken_pid=""
+    cleanup_serve() {
+      stop_mcp_daemon
+      if [ -n "$franken_pid" ] && kill -0 "$franken_pid" 2>/dev/null; then
+        kill "$franken_pid" 2>/dev/null || true
+        wait "$franken_pid" 2>/dev/null || true
+      fi
+    }
+    trap cleanup_serve EXIT INT TERM
+    $FRANKENPHP run --config "$(write_caddyfile "$host" "$port")" &
+    franken_pid="$!"
+    wait "$franken_pid"
+  else
+    exec $FRANKENPHP run --config "$(write_caddyfile "$host" "$port")"
+  fi
 }
 
 cmd_artisan() {
@@ -403,7 +521,71 @@ cmd_doctor() {
     failures=$((failures + 1))
   fi
 
+  if [ -f "$MCP_DAEMON_DIR/dist/server.js" ]; then
+    if mcp_node >/dev/null 2>&1; then
+      printf 'ok   MCP daemon bundle\n'
+    else
+      printf 'fail MCP daemon node runtime\n'
+      failures=$((failures + 1))
+    fi
+  fi
+
   return "$failures"
+}
+
+cmd_mcp() {
+  local subcommand="${1:-help}"
+  [ $# -gt 0 ] && shift || true
+
+  case "$subcommand" in
+    serve)
+      require_mcp
+      init_storage
+      export MCP_DAEMON_HOST="${MCP_DAEMON_HOST:-127.0.0.1}"
+      export MCP_DAEMON_PORT="${MCP_DAEMON_PORT:-8006}"
+      export MCP_DAEMON_URL="${MCP_DAEMON_URL:-http://${MCP_DAEMON_HOST}:${MCP_DAEMON_PORT}}"
+      export MCP_INTERNAL_BASE_URL="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}/api/v2}"
+      echo "Starting MCP daemon at $MCP_DAEMON_URL"
+      cd "$MCP_DAEMON_DIR"
+      exec "$(mcp_node)" dist/server.js
+      ;;
+    doctor)
+      local failures=0
+      if [ -f "$MCP_DAEMON_DIR/dist/server.js" ]; then
+        printf 'ok   MCP daemon files\n'
+      else
+        printf 'fail MCP daemon files\n'
+        failures=$((failures + 1))
+      fi
+      if mcp_node >/dev/null 2>&1; then
+        printf 'ok   node runtime\n'
+        "$(mcp_node)" --version
+      else
+        printf 'fail node runtime\n'
+        failures=$((failures + 1))
+      fi
+      if command -v curl >/dev/null 2>&1 && curl -fsS "$(mcp_url)/health" >/dev/null 2>&1; then
+        printf 'ok   MCP daemon health\n'
+      else
+        printf 'warn MCP daemon health unavailable at %s\n' "$(mcp_url)"
+      fi
+      return "$failures"
+      ;;
+    url)
+      mcp_url
+      echo ""
+      ;;
+    help|--help|-h)
+      echo "Usage:"
+      echo "  dreamfactory mcp serve             Start the bundled MCP daemon"
+      echo "  dreamfactory mcp doctor            Check MCP bundle and daemon health"
+      echo "  dreamfactory mcp url               Print MCP daemon URL"
+      ;;
+    *)
+      echo "Unknown mcp command: $subcommand" >&2
+      return 1
+      ;;
+  esac
 }
 
 cmd_version() {
@@ -1090,6 +1272,11 @@ cmd_ai() {
   "binary_connectors": ["pgsql", "mysql", "sqlsrv", "sqlite", "rws", "soap"],
   "docker_connectors": ["pgsql", "mysql", "sqlsrv", "sqlite", "rws", "soap"],
   "planned_binary_connectors": [],
+  "mcp": {
+    "serve": "dreamfactory serve --with-mcp",
+    "doctor": "dreamfactory mcp doctor",
+    "daemon_url": "http://127.0.0.1:8006"
+  },
   "ai_commands": {
     "spec": "Print this machine-readable capability document",
     "login": "Exchange admin credentials for a session token",
@@ -1099,12 +1286,15 @@ cmd_ai() {
     "list-service-types": "List available service types",
     "inspect-service": "Inspect table metadata for a service",
     "demo-pgsql": "Seed and register a PostgreSQL demo service",
-    "demo-sqlite": "Create and register a local SQLite demo service"
+    "demo-sqlite": "Create and register a local SQLite demo service",
+    "mcp-doctor": "Check bundled MCP daemon readiness"
   },
   "human_commands": {
     "login": "Login and print session JSON",
     "demo pgsql": "Seed and register a PostgreSQL demo service",
     "demo sqlite": "Create and register a local SQLite smoke-test service",
+    "serve --with-mcp": "Start DreamFactory and the bundled MCP daemon",
+    "mcp doctor": "Check bundled MCP daemon readiness",
     "service list-types": "List available service types",
     "service supported-types": "List quickstart-supported service types",
     "service plan": "Print a service creation payload template",
@@ -1137,6 +1327,9 @@ JSON
       ;;
     demo-sqlite)
       cmd_demo sqlite "$@"
+      ;;
+    mcp-doctor)
+      cmd_mcp doctor "$@"
       ;;
     *)
       echo "Unknown ai command: $subcommand" >&2
@@ -1173,6 +1366,10 @@ case "${1:-serve}" in
     shift
     cmd_service "$@"
     ;;
+  mcp)
+    shift
+    cmd_mcp "$@"
+    ;;
   reset-admin)
     shift
     cmd_reset_admin "$@"
@@ -1195,8 +1392,11 @@ case "${1:-serve}" in
     echo ""
     echo "Usage:"
     echo "  dreamfactory serve [--host HOST] [--port PORT] [--admin-email EMAIL] [--admin-password PASSWORD]"
+    echo "  dreamfactory serve --with-mcp      Start API server and bundled MCP daemon"
     echo "  dreamfactory setup [--admin-email EMAIL] [--admin-password PASSWORD]"
     echo "  dreamfactory doctor                Check runtime readiness"
+    echo "  dreamfactory mcp doctor            Check MCP bundle and daemon health"
+    echo "  dreamfactory mcp serve             Start only the bundled MCP daemon"
     echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory login                 Login and print session JSON"
     echo "  dreamfactory demo pgsql            Create and register a PostgreSQL demo"
@@ -1214,6 +1414,7 @@ case "${1:-serve}" in
     echo "  dreamfactory ai supported-service-types List quickstart-supported service types"
     echo "  dreamfactory ai demo-pgsql         Create and register a PostgreSQL demo"
     echo "  dreamfactory ai demo-sqlite        Create and register a local SQLite smoke test"
+    echo "  dreamfactory ai mcp-doctor         Check bundled MCP daemon readiness"
     echo "  dreamfactory migrate               Run database migrations"
     echo "  dreamfactory artisan [...]          Run any artisan command"
     echo ""
@@ -1223,6 +1424,7 @@ case "${1:-serve}" in
     echo "  ADMIN_PASSWORD         Admin password for first-run setup"
     echo "  LISTEN_HOST            Bind host (default: 0.0.0.0)"
     echo "  SERVER_PORT            Listen port (default: 8080)"
+    echo "  MCP_DAEMON_PORT        MCP daemon port (default: 8006)"
     echo "  DREAMFACTORY_URL       API URL for CLI calls"
     echo "  DREAMFACTORY_SESSION_TOKEN Session token for CLI calls"
     ;;

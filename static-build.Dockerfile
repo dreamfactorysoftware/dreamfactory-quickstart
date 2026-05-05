@@ -14,13 +14,14 @@
 FROM php:8.4-cli AS app-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip sqlite3 libsqlite3-dev libzip-dev libxml2-dev libcurl4-openssl-dev libpq-dev \
+    git unzip sqlite3 libsqlite3-dev libzip-dev libxml2-dev libcurl4-openssl-dev libpq-dev nodejs npm \
     && docker-php-ext-install pdo_mysql pdo_pgsql pdo_sqlite zip soap bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 ARG BRANCH=master
+ARG INCLUDE_MCP=false
 RUN git clone --depth 1 --branch $BRANCH \
     https://github.com/dreamfactorysoftware/dreamfactory.git /build/app && \
     rm -rf /build/app/.git
@@ -29,6 +30,12 @@ WORKDIR /build/app
 
 # Overlay composer.json for the quickstart binary profile.
 COPY composer.binary.json composer.json
+COPY .build/df-mcp-server /build/df-mcp-server
+
+RUN if [ "$INCLUDE_MCP" = "true" ]; then \
+      test -f /build/df-mcp-server/composer.json; \
+      php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $json["repositories"][]=["type"=>"path","url"=>"/build/df-mcp-server","options"=>["symlink"=>false]]; $json["require"]["dreamfactory/df-mcp-server"]="*"; file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'; \
+    fi
 
 # Pre-composer cleanup
 RUN rm -f composer.lock bootstrap/cache/packages.php bootstrap/cache/services.php && \
@@ -50,6 +57,16 @@ RUN sed -i '/use MongoDB/d' vendor/dreamfactory/df-core/src/LaravelServiceProvid
 # Post-install steps
 RUN composer dump-autoload --optimize && \
     php artisan package:discover --ansi
+
+RUN mkdir -p /build/mcp-daemon && \
+    if [ "$INCLUDE_MCP" = "true" ]; then \
+      cd /build/df-mcp-server/daemon; \
+      npm ci; \
+      npm run build; \
+      npm prune --omit=dev; \
+      cp package.json package-lock.json /build/mcp-daemon/; \
+      cp -a dist node_modules /build/mcp-daemon/; \
+    fi
 
 # Production .env
 RUN cp .env-dist .env && \
@@ -106,7 +123,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Stage 3: Compile the static FrankenPHP binary with embedded app
+# Stage 3: Prepare the bundled Node runtime used by the MCP daemon
+# =============================================================================
+FROM node:20-bookworm-slim AS node-runtime
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN mkdir -p /node-runtime/bin /node-runtime/lib \
+    && cp -L /usr/local/bin/node /node-runtime/bin/node \
+    && ldd /usr/local/bin/node \
+      | awk '/=> \// {print $(NF-1)} /^\// {print $1}' \
+      | sort -u \
+      | while read -r lib; do \
+          case "$lib" in \
+            /lib*/ld-linux*|/lib*/libc.so*|/lib*/libpthread.so*|/lib*/libdl.so*|/lib*/libm.so*|/lib*/libresolv.so*|/lib*/librt.so*|/lib*/libutil.so*) ;; \
+            *) cp -L "$lib" /node-runtime/lib/ ;; \
+          esac; \
+        done
+
+# =============================================================================
+# Stage 4: Compile the static FrankenPHP binary with embedded app
 # =============================================================================
 FROM --platform=linux/amd64 dunglas/frankenphp:static-builder-gnu
 
@@ -147,3 +183,5 @@ RUN test -f /go/src/app/dist/static-php-cli/buildroot/bin/frankenphp \
     && cp /go/src/app/dist/static-php-cli/buildroot/bin/frankenphp /go/src/app/dist/frankenphp-linux-x86_64 \
     && /go/src/app/dist/frankenphp-linux-x86_64 version
 COPY --from=odbc-runtime /odbc-runtime /go/src/app/dist/odbc-runtime
+COPY --from=node-runtime /node-runtime /go/src/app/dist/node-runtime
+COPY --from=app-builder /build/mcp-daemon /go/src/app/dist/mcp-daemon

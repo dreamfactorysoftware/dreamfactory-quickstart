@@ -12,6 +12,20 @@ tools, or consumed by agents.
   --admin-password YourPassword123456
 ```
 
+Start the MCP-enabled artifact with the bundled `df-mcp-server` daemon:
+
+```bash
+./dreamfactory serve --with-mcp \
+  --admin-email you@company.example \
+  --admin-password YourPassword123456
+```
+
+Check the MCP bundle and daemon health:
+
+```bash
+./dreamfactory mcp doctor
+```
+
 ## Login
 
 ```bash
@@ -105,6 +119,7 @@ The `ai` namespace keeps stable machine-readable aliases:
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-sqlite --email you@company.example --password YourPassword123456
+./dreamfactory ai mcp-doctor
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"
 ./dreamfactory ai supported-service-types

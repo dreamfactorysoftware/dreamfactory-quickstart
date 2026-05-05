@@ -63,12 +63,16 @@ DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" ai spec >/dev/null
 echo "[3/5] Starting server on port $PORT"
 SMOKE_ADMIN_EMAIL="${ADMIN_EMAIL:-admin@dreamfactory.com}"
 SMOKE_ADMIN_PASSWORD="${ADMIN_PASSWORD:-YourPassword123456}"
+SERVE_ARGS=(serve)
+if [ -d "$APP_DIR/mcp-daemon" ]; then
+  SERVE_ARGS+=(--with-mcp --mcp-port "${MCP_DAEMON_PORT:-18086}")
+fi
 
 ADMIN_EMAIL="$SMOKE_ADMIN_EMAIL" \
 ADMIN_PASSWORD="$SMOKE_ADMIN_PASSWORD" \
 DREAMFACTORY_STORAGE="$STORAGE" \
 SERVER_PORT="$PORT" \
-"$DREAMFACTORY" serve >"$LOG" 2>&1 &
+"$DREAMFACTORY" "${SERVE_ARGS[@]}" >"$LOG" 2>&1 &
 SERVER_PID="$!"
 
 echo "[4/5] Waiting for HTTP response"
@@ -91,6 +95,9 @@ for _ in $(seq 1 90); do
       if [ "$root_status" = "302" ] && [ "$admin_status" = "200" ] && [ "$login_status" = "200" ]; then
         echo "[5/5] Checking doctor and AI login"
         DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" doctor
+        if [ -d "$APP_DIR/mcp-daemon" ]; then
+          MCP_DAEMON_PORT="${MCP_DAEMON_PORT:-18086}" "$DREAMFACTORY" mcp doctor
+        fi
         "$DREAMFACTORY" ai login \
           --url "http://127.0.0.1:$PORT/api/v2" \
           --email "$SMOKE_ADMIN_EMAIL" \
