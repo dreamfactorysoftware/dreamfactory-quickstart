@@ -1,12 +1,27 @@
 # DreamFactory Quickstart
 
-Fast local DreamFactory adoption from one Linux archive: unpack, run one command,
-connect data, and expose governed APIs.
+Fast local DreamFactory adoption: unpack, run one command, connect data, and
+expose governed APIs.
 
 This repository is the packaging and release home for the DreamFactory
 quickstart binary. It is not a reduced DreamFactory fork. The goal is a low
 friction first experience for OSS users and AI data access governance
 evaluations.
+
+## Release Goal
+
+The business goal is to make trying DreamFactory require as little commitment as
+possible. A new user should be able to evaluate DreamFactory without a sales
+call, multi-container setup, package scavenger hunt, or cloud account.
+
+The first release artifact is a Linux x86_64 archive, but the packaging strategy
+should remain platform agnostic:
+
+- keep the runtime contract the same across platforms: `dreamfactory serve`
+- avoid host-level package installation for the first-run path
+- keep persistent state in a single user-controlled directory
+- make archive contents self-contained wherever licensing allows
+- keep OS-specific details inside build/release packaging, not user workflow
 
 ## Current Target
 
@@ -113,4 +128,3 @@ Recommended repo split:
 
 Before a public release, complete the license review for bundled Microsoft ODBC
 runtime files and any DreamFactory package redistribution requirements.
-

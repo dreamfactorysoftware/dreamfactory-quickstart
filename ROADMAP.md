@@ -1,8 +1,29 @@
 # DreamFactory Quickstart Roadmap
 
 The marketing promise is simple: try DreamFactory without a sales call,
-multi-container setup, or connector scavenger hunt. Download one archive, run
-one command, connect data, and show governed APIs quickly.
+multi-container setup, cloud account, or connector scavenger hunt. Download one
+archive, run one command, connect data, and show governed APIs quickly.
+
+## Product Principle
+
+Reduce evaluation friction first. Every release decision should protect the
+shortest path from curiosity to a running DreamFactory instance:
+
+- no required sales touch
+- no required Docker or Kubernetes for the release archive path
+- no required host package installation for the first-run path
+- one obvious command to start DreamFactory
+- one obvious place for persistent data
+- connectors available without add-on discovery for common evaluation targets
+
+The initial Linux x86_64 package is the first proof point, not the long-term
+platform boundary. Keep the user-facing workflow platform neutral so future
+Linux ARM64, macOS, Windows, VM, or container artifacts can expose the same
+shape:
+
+```bash
+./dreamfactory serve --admin-email you@company.example --admin-password YourPassword123456
+```
 
 ## Current State
 
@@ -25,6 +46,29 @@ one command, connect data, and show governed APIs quickly.
 - Add a clean Ubuntu install walkthrough.
 - Confirm fresh host behavior with no system ODBC install.
 - Record known limitations and support boundaries.
+
+## Platform-Agnostic Release Strategy
+
+- Treat `dreamfactory serve` as the stable product interface.
+- Keep platform differences in artifact names, checksums, and build scripts.
+- Prefer self-contained archives over installers until the archive experience is
+  proven.
+- Add installer scripts only as thin convenience wrappers around signed,
+  checksum-verified archives.
+- Keep storage override behavior consistent through `DREAMFACTORY_STORAGE`.
+- Validate each platform artifact with the same smoke-test expectations: server
+  boot, Admin UI load, API response, admin login, `doctor`, and AI helper login.
+
+Candidate artifact ladder:
+
+- Linux x86_64 archive
+- Linux ARM64 archive
+- macOS Apple Silicon archive
+- macOS Intel archive, if demand justifies it
+- Windows archive or installer, after runtime and extension constraints are
+  understood
+- container image, as an alternate path for teams that already standardize on
+  containers
 
 ## Public Release Checklist
 
@@ -84,4 +128,3 @@ Defer from default binary until there is a specific adoption story:
 - Enterprise auth/messaging packages such as SAML, LDAP, AMQP, MQTT, Pub/Sub.
 - Scheduler, scripting, AI chat, guardian, and other features that broaden the
   first-run surface area.
-
