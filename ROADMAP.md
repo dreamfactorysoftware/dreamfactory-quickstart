@@ -37,6 +37,8 @@ shape:
   admin login, `doctor`, and `ai login`.
 - Early AI helper commands exist: `ai spec`, `ai login`, and
   `ai plan-service`.
+- First human/LLM CLI service commands exist locally: login, list service
+  types, plan service payloads, apply services, and inspect service metadata.
 
 ## Ship The First Internal Demo
 
@@ -95,9 +97,7 @@ Candidate artifact ladder:
 
 Short term:
 
-- `ai apply-service --file service.json`
 - `ai list-service-types`
-- `ai inspect-service SERVICE`
 - `ai create-app-key --role ROLE --name NAME`
 
 Medium term:

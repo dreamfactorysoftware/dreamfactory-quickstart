@@ -61,6 +61,23 @@ From the unpacked directory:
 ./dreamfactory doctor
 ```
 
+## Configure Data From The CLI
+
+Generate a service payload:
+
+```bash
+./dreamfactory service plan pgsql > service.json
+```
+
+Edit `service.json` with your connection details, then apply it:
+
+```bash
+./dreamfactory service apply \
+  --file service.json \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 ## Reset The Admin User
 
 ```bash

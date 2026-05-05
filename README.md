@@ -87,9 +87,15 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory help
 ./dreamfactory version
 ./dreamfactory doctor
+./dreamfactory login --email you@company.example --password YourPassword123456
+./dreamfactory service list-types --email you@company.example --password YourPassword123456
+./dreamfactory service plan pgsql > service.json
+./dreamfactory service apply --file service.json --email you@company.example --password YourPassword123456
 ./dreamfactory reset-admin --email you@company.example --password NewPassword123456
 ./dreamfactory artisan route:list
 ```
+
+See [docs/CLI.md](docs/CLI.md) for the human and LLM-oriented CLI surface.
 
 ## API Demo
 
@@ -114,6 +120,9 @@ without scraping docs.
 ./dreamfactory ai plan-service pgsql
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai plan-service soap
+./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"
+./dreamfactory ai list-service-types --session-token "$TOKEN"
+./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
 ./dreamfactory ai login \
   --url http://localhost:8080/api/v2 \
   --email you@company.example \
@@ -122,7 +131,6 @@ without scraping docs.
 
 Planned next steps:
 
-- `ai apply-service` to create a service from JSON
 - `ai grant-role` to generate least-privilege role access
 - `ai create-app-key` to produce scoped API keys
 - `ai inspect` to emit machine-readable service/table metadata
