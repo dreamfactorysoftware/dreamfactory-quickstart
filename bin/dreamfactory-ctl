@@ -8,6 +8,7 @@
 #   dreamfactory doctor                  Check binary runtime readiness
 #   dreamfactory version                 Print package version metadata
 #   dreamfactory login                   Login and print session JSON
+#   dreamfactory demo pgsql              Create and register a PostgreSQL demo
 #   dreamfactory demo sqlite             Create and register a local SQLite demo
 #   dreamfactory service supported-types List quickstart-supported service types
 #   dreamfactory service list-types      List available service types
@@ -468,6 +469,13 @@ require_sqlite3() {
   fi
 }
 
+require_psql() {
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "psql is required for this command" >&2
+    return 1
+  fi
+}
+
 extract_session_token() {
   sed -n 's/.*"session_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -1
 }
@@ -822,6 +830,129 @@ cmd_demo() {
   [ $# -gt 0 ] && shift || true
 
   case "$subcommand" in
+    pgsql|postgres|postgresql)
+      if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+        echo "Usage:"
+        echo "  dreamfactory demo pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS [--email EMAIL --password PASSWORD]"
+        echo "  dreamfactory demo pgsql --skip-seed --db-host HOST --db-name DB --db-user USER --db-password PASS"
+        return 0
+      fi
+
+      require_curl
+      require_psql
+
+      local url="$(api_url)"
+      local token="${DREAMFACTORY_SESSION_TOKEN:-}"
+      local email="${ADMIN_EMAIL:-}"
+      local password="${ADMIN_PASSWORD:-}"
+      local service_name="demo_pgsql"
+      local db_host="localhost"
+      local db_port="5432"
+      local db_name="app"
+      local db_user="app"
+      local db_password="${PGPASSWORD:-}"
+      local seed="true"
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --url) url="$2"; shift 2 ;;
+          --url=*) url="${1#*=}"; shift ;;
+          --session-token|--token) token="$2"; shift 2 ;;
+          --session-token=*|--token=*) token="${1#*=}"; shift ;;
+          --email|--admin-email) email="$2"; shift 2 ;;
+          --email=*|--admin-email=*) email="${1#*=}"; shift ;;
+          --password|--admin-password) password="$2"; shift 2 ;;
+          --password=*|--admin-password=*) password="${1#*=}"; shift ;;
+          --name|--service-name) service_name="$2"; shift 2 ;;
+          --name=*|--service-name=*) service_name="${1#*=}"; shift ;;
+          --db-host|--host) db_host="$2"; shift 2 ;;
+          --db-host=*|--host=*) db_host="${1#*=}"; shift ;;
+          --db-port|--port) db_port="$2"; shift 2 ;;
+          --db-port=*|--port=*) db_port="${1#*=}"; shift ;;
+          --db-name|--database) db_name="$2"; shift 2 ;;
+          --db-name=*|--database=*) db_name="${1#*=}"; shift ;;
+          --db-user|--username) db_user="$2"; shift 2 ;;
+          --db-user=*|--username=*) db_user="${1#*=}"; shift ;;
+          --db-password) db_password="$2"; shift 2 ;;
+          --db-password=*) db_password="${1#*=}"; shift ;;
+          --skip-seed) seed="false"; shift ;;
+          *) shift ;;
+        esac
+      done
+
+      if [ "$seed" = "true" ] && [ -z "$db_password" ]; then
+        echo "PostgreSQL password is required for seeding. Pass --db-password or set PGPASSWORD." >&2
+        return 1
+      fi
+
+      if [ "$seed" = "true" ]; then
+        PGPASSWORD="$db_password" psql \
+          -h "$db_host" \
+          -p "$db_port" \
+          -U "$db_user" \
+          -d "$db_name" \
+          -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+SET client_min_messages TO warning;
+CREATE TABLE IF NOT EXISTS widgets (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+TRUNCATE widgets RESTART IDENTITY;
+INSERT INTO widgets (name, status, quantity) VALUES
+  ('starter-kit', 'ready', 42),
+  ('field-gateway', 'testing', 12),
+  ('analytics-feed', 'ready', 7);
+SQL
+      fi
+
+      local payload
+      payload="$(mktemp)"
+      cat > "$payload" <<JSON
+{
+  "resource": [
+    {
+      "name": "$(json_escape "$service_name")",
+      "label": "DreamFactory PostgreSQL Demo",
+      "type": "pgsql",
+      "is_active": true,
+      "config": {
+        "host": "$(json_escape "$db_host")",
+        "port": $db_port,
+        "database": "$(json_escape "$db_name")",
+        "username": "$(json_escape "$db_user")",
+        "password": "$(json_escape "$db_password")"
+      }
+    }
+  ]
+}
+JSON
+
+      token="$(session_token_from_args "$url" "$token" "$email" "$password")"
+      local response
+      response="$(request_json POST "$url/system/service" "$token" "$payload")"
+      rm -f "$payload"
+
+      cat <<JSON
+{
+  "service": "$service_name",
+  "database": {
+    "host": "$db_host",
+    "port": $db_port,
+    "name": "$db_name",
+    "username": "$db_user"
+  },
+  "seeded": $seed,
+  "apply_response": $response,
+  "next": {
+    "tables": "$url/$service_name/_table",
+    "widgets": "$url/$service_name/_table/widgets"
+  }
+}
+JSON
+      ;;
     sqlite)
       require_curl
       require_sqlite3
@@ -921,6 +1052,8 @@ JSON
       ;;
     help|--help|-h)
       echo "Usage:"
+      echo "  dreamfactory demo pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS [--email EMAIL --password PASSWORD]"
+      echo "  dreamfactory demo pgsql --skip-seed --db-host HOST --db-name DB --db-user USER --db-password PASS"
       echo "  dreamfactory demo sqlite [--email EMAIL --password PASSWORD]"
       echo "  dreamfactory demo sqlite --name demo_sqlite --force"
       ;;
@@ -965,11 +1098,13 @@ cmd_ai() {
     "supported-service-types": "List quickstart-supported service types",
     "list-service-types": "List available service types",
     "inspect-service": "Inspect table metadata for a service",
+    "demo-pgsql": "Seed and register a PostgreSQL demo service",
     "demo-sqlite": "Create and register a local SQLite demo service"
   },
   "human_commands": {
     "login": "Login and print session JSON",
-    "demo sqlite": "Create and register a local SQLite demo service",
+    "demo pgsql": "Seed and register a PostgreSQL demo service",
+    "demo sqlite": "Create and register a local SQLite smoke-test service",
     "service list-types": "List available service types",
     "service supported-types": "List quickstart-supported service types",
     "service plan": "Print a service creation payload template",
@@ -996,6 +1131,9 @@ JSON
       ;;
     inspect-service)
       cmd_service inspect "$@"
+      ;;
+    demo-pgsql)
+      cmd_demo pgsql "$@"
       ;;
     demo-sqlite)
       cmd_demo sqlite "$@"
@@ -1061,7 +1199,8 @@ case "${1:-serve}" in
     echo "  dreamfactory doctor                Check runtime readiness"
     echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory login                 Login and print session JSON"
-    echo "  dreamfactory demo sqlite           Create and register a local SQLite demo"
+    echo "  dreamfactory demo pgsql            Create and register a PostgreSQL demo"
+    echo "  dreamfactory demo sqlite           Create and register a local SQLite smoke test"
     echo "  dreamfactory service supported-types List quickstart-supported service types"
     echo "  dreamfactory service list-types    List available service types"
     echo "  dreamfactory service plan TYPE     Print service payload template"
@@ -1073,7 +1212,8 @@ case "${1:-serve}" in
     echo "  dreamfactory ai plan-service TYPE  Print service payload template"
     echo "  dreamfactory ai apply-service --file F Create a service from JSON"
     echo "  dreamfactory ai supported-service-types List quickstart-supported service types"
-    echo "  dreamfactory ai demo-sqlite        Create and register a local SQLite demo"
+    echo "  dreamfactory ai demo-pgsql         Create and register a PostgreSQL demo"
+    echo "  dreamfactory ai demo-sqlite        Create and register a local SQLite smoke test"
     echo "  dreamfactory migrate               Run database migrations"
     echo "  dreamfactory artisan [...]          Run any artisan command"
     echo ""

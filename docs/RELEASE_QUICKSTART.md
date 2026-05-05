@@ -63,7 +63,19 @@ From the unpacked directory:
 
 ## Configure Data From The CLI
 
-Fastest local demo:
+Primary PostgreSQL demo:
+
+```bash
+./dreamfactory demo pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+Offline smoke-test fallback:
 
 ```bash
 ./dreamfactory demo sqlite \

@@ -88,7 +88,13 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory version
 ./dreamfactory doctor
 ./dreamfactory login --email you@company.example --password YourPassword123456
-./dreamfactory demo sqlite --email you@company.example --password YourPassword123456
+./dreamfactory demo pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory service supported-types
 ./dreamfactory service list-types --email you@company.example --password YourPassword123456
 ./dreamfactory service plan pgsql > service.json
@@ -98,9 +104,9 @@ The archive includes `VERSION` and `release.json` metadata.
 ```
 
 See [docs/CLI.md](docs/CLI.md) for the human and LLM-oriented CLI surface.
-See [docs/SQLITE_DEMO.md](docs/SQLITE_DEMO.md) for the fastest local demo and
-[docs/POSTGRES_DEMO.md](docs/POSTGRES_DEMO.md) for the first external database
-path.
+See [docs/POSTGRES_DEMO.md](docs/POSTGRES_DEMO.md) for the primary product demo
+path and [docs/SQLITE_DEMO.md](docs/SQLITE_DEMO.md) for an offline smoke-test
+fallback.
 
 ## API Demo
 
@@ -123,7 +129,13 @@ without scraping docs.
 ```bash
 ./dreamfactory ai spec
 ./dreamfactory ai plan-service pgsql
-./dreamfactory ai demo-sqlite --email you@company.example --password YourPassword123456
+./dreamfactory ai demo-pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai plan-service soap
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"

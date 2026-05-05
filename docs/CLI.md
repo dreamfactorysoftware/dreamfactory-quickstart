@@ -39,7 +39,19 @@ Use `DREAMFACTORY_URL` when the API is not at `http://localhost:8080/api/v2`.
 
 ## Services
 
-Create the local SQLite demo service:
+Create the primary PostgreSQL demo service:
+
+```bash
+./dreamfactory demo pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+Create the local SQLite smoke-test service:
 
 ```bash
 ./dreamfactory demo sqlite \
@@ -91,6 +103,7 @@ The `ai` namespace keeps stable machine-readable aliases:
 ```bash
 ./dreamfactory ai spec
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
+./dreamfactory ai demo-pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-sqlite --email you@company.example --password YourPassword123456
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"

@@ -1,7 +1,7 @@
-# SQLite Demo
+# SQLite Smoke Test
 
-This is the shortest path from a running DreamFactory quickstart to real API
-responses from real data. It does not require Docker or an external database.
+This is an offline smoke-test path for validating the quickstart without Docker
+or an external database. The primary product demo is PostgreSQL.
 
 Start DreamFactory:
 
