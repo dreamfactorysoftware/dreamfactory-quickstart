@@ -1,0 +1,20 @@
+{
+  "resource": [
+    {
+      "name": "mssql_test",
+      "label": "SQL Server Test",
+      "type": "sqlsrv",
+      "is_active": true,
+      "config": {
+        "host": "host.docker.internal",
+        "port": 11433,
+        "database": "dfmini",
+        "username": "sa",
+        "password": "YourStrong!Passw0rd",
+        "encrypt": false,
+        "trust_server_certificate": true
+      }
+    }
+  ]
+}
+

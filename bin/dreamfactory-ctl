@@ -1,0 +1,626 @@
+#!/usr/bin/env bash
+#
+# dreamfactory — DreamFactory Quickstart CLI
+#
+# Usage:
+#   dreamfactory serve [--port PORT]     Start the API server
+#   dreamfactory setup                   Run first-time setup interactively
+#   dreamfactory doctor                  Check binary runtime readiness
+#   dreamfactory reset-admin             Create or reset the admin user
+#   dreamfactory ai spec                 Print machine-readable AI helper spec
+#   dreamfactory migrate                 Run database migrations
+#   dreamfactory artisan [...]           Run any artisan command
+#
+# Environment:
+#   DREAMFACTORY_STORAGE  Persistent data directory (default: ~/.dreamfactory)
+#   ADMIN_EMAIL           Admin email for first-run setup
+#   ADMIN_PASSWORD        Admin password for first-run setup (min 16 chars)
+#   LISTEN_HOST           Host to bind (default: 0.0.0.0)
+#   SERVER_PORT           Port to listen on (default: 8080)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# The frankenphp binary — either alongside this script or this script IS the binary
+if [ -x "$SCRIPT_DIR/frankenphp" ]; then
+  FRANKENPHP="$SCRIPT_DIR/frankenphp"
+elif command -v frankenphp &>/dev/null; then
+  FRANKENPHP="frankenphp"
+else
+  # We might be running inside the embedded binary itself
+  FRANKENPHP="$(cd "$(dirname "$0")/.." && pwd)/frankenphp"
+  if [ ! -x "$FRANKENPHP" ]; then
+    echo "Error: frankenphp binary not found" >&2
+    exit 1
+  fi
+fi
+
+STORAGE="${DREAMFACTORY_STORAGE:-$HOME/.dreamfactory}"
+export LARAVEL_STORAGE_PATH="$STORAGE"
+
+configure_bundled_odbc() {
+  local odbc_dir="$SCRIPT_DIR/odbc"
+  local driver_path
+  driver_path="$(find "$odbc_dir/microsoft/msodbcsql18/lib64" -maxdepth 1 -name 'libmsodbcsql-*.so*' -type f 2>/dev/null | sort | tail -1 || true)"
+
+  if [ -n "$driver_path" ]; then
+    export LD_LIBRARY_PATH="$odbc_dir/lib:$odbc_dir/microsoft/msodbcsql18/lib64:${LD_LIBRARY_PATH:-}"
+    export ODBCSYSINI="$STORAGE/odbc"
+    export ODBCINI="$STORAGE/odbc/odbc.ini"
+    mkdir -p "$STORAGE/odbc"
+    cat > "$STORAGE/odbc/odbcinst.ini" <<ODBC
+[ODBC Driver 18 for SQL Server]
+Description=Microsoft ODBC Driver 18 for SQL Server
+Driver=$driver_path
+UsageCount=1
+ODBC
+    [ -f "$STORAGE/odbc/odbc.ini" ] || : > "$STORAGE/odbc/odbc.ini"
+  fi
+}
+
+configure_bundled_odbc
+
+init_storage() {
+  if [ ! -d "$STORAGE" ]; then
+    echo "Initializing storage at $STORAGE ..."
+  fi
+
+  mkdir -p "$STORAGE/databases" \
+           "$STORAGE/app" \
+           "$STORAGE/framework/cache/data" \
+           "$STORAGE/framework/sessions" \
+           "$STORAGE/framework/views" \
+           "$STORAGE/logs" \
+           "$STORAGE/odbc"
+
+  if [ ! -f "$STORAGE/databases/database.sqlite" ]; then
+    touch "$STORAGE/databases/database.sqlite"
+  fi
+}
+
+needs_setup() {
+  [ ! -f "$STORAGE/.initialized" ]
+}
+
+admin_email() {
+  printf '%s' "${ADMIN_EMAIL:-}"
+}
+
+admin_password() {
+  printf '%s' "${ADMIN_PASSWORD:-}"
+}
+
+ensure_admin() {
+  local email="$1"
+  local password="$2"
+
+  if [ -z "$email" ] || [ -z "$password" ]; then
+    echo "Admin email and password are required." >&2
+    return 1
+  fi
+
+  ADMIN_EMAIL="$email" ADMIN_PASSWORD="$password" $FRANKENPHP php-cli artisan tinker --execute='
+    $email = getenv("ADMIN_EMAIL") ?: "";
+    $password = getenv("ADMIN_PASSWORD") ?: "";
+    if ($email === "" || $password === "") {
+      fwrite(STDERR, "Admin email and password are required.\n");
+      exit(1);
+    }
+    if (!\Schema::hasTable("user")) {
+      fwrite(STDERR, "User table is missing. Run migrations/setup first.\n");
+      exit(1);
+    }
+    $user = \DreamFactory\Core\Models\User::where("email", $email)->first();
+    if ($user) {
+      $user->password = $password;
+      $user->is_sys_admin = true;
+      $user->is_active = true;
+      $user->save();
+      echo "Admin ready.";
+    } else {
+      \DB::table("user")->insert([
+        "name" => trim((getenv("ADMIN_FIRST_NAME") ?: "Admin") . " " . (getenv("ADMIN_LAST_NAME") ?: "User")),
+        "first_name" => getenv("ADMIN_FIRST_NAME") ?: "Admin",
+        "last_name" => getenv("ADMIN_LAST_NAME") ?: "User",
+        "email" => $email,
+        "username" => $email,
+        "password" => \Hash::make($password),
+        "is_sys_admin" => true,
+        "is_active" => true,
+        "phone" => getenv("ADMIN_PHONE") ?: "5555555555",
+        "created_date" => now(),
+        "last_modified_date" => now()
+      ]);
+      echo "Admin inserted.";
+    }
+  '
+}
+
+admin_exists() {
+  local count
+  count="$($FRANKENPHP php-cli artisan tinker --execute='
+    echo \Schema::hasTable("user") ? \DB::table("user")->where("is_sys_admin", 1)->where("is_active", 1)->count() : 0;
+  ' 2>/dev/null || true)"
+  [ "${count##*$'\n'}" != "0" ]
+}
+
+write_caddyfile() {
+  local host="$1"
+  local port="$2"
+  local caddyfile="$STORAGE/Caddyfile"
+  local listen="$host:$port"
+
+  if [ "$host" = "0.0.0.0" ]; then
+    listen=":$port"
+  fi
+
+  cat > "$caddyfile" <<CADDY
+{
+	frankenphp
+	order php_server before file_server
+	admin off
+}
+
+$listen {
+	root * public
+	encode zstd gzip
+
+	redir / /dreamfactory/dist/index.html 302
+	redir /dreamfactory /dreamfactory/dist/index.html 302
+	redir /dreamfactory/ /dreamfactory/dist/index.html 302
+	redir /dreamfactory/dist /dreamfactory/dist/index.html 302
+	redir /dreamfactory/dist/ /dreamfactory/dist/index.html 302
+
+	php_server {
+		resolve_root_symlink
+	}
+}
+CADDY
+
+  printf '%s' "$caddyfile"
+}
+
+run_setup() {
+  init_storage
+
+  local email="${ADMIN_EMAIL:-}"
+  local password="${ADMIN_PASSWORD:-}"
+  local non_interactive="${NON_INTERACTIVE_SETUP:-false}"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --admin-email|--email) email="$2"; shift 2 ;;
+      --admin-email=*|--email=*) email="${1#*=}"; shift ;;
+      --admin-password|--password) password="$2"; shift 2 ;;
+      --admin-password=*|--password=*) password="${1#*=}"; shift ;;
+      --non-interactive) non_interactive="true"; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  echo "============================================"
+  echo "  DreamFactory Quickstart — First-Time Setup"
+  echo "============================================"
+  echo ""
+
+  # Generate APP_KEY if not set
+  echo "Generating application key..."
+  $FRANKENPHP php-cli artisan key:generate --force 2>/dev/null || true
+
+  # Run migrations
+  echo "Running database migrations..."
+  $FRANKENPHP php-cli artisan migrate --force --seed 2>&1 | tail -5
+
+  # Run DF setup
+  echo "Configuring DreamFactory..."
+  $FRANKENPHP php-cli artisan df:setup --force 2>/dev/null || true
+
+  # Create admin user
+  if [ -z "$email" ]; then
+    if [ "$non_interactive" = "true" ]; then
+      echo "Admin email is required. Pass --admin-email or set ADMIN_EMAIL." >&2
+      return 1
+    fi
+    read -rp "Admin email: " email
+  fi
+  if [ -z "$password" ]; then
+    if [ "$non_interactive" = "true" ]; then
+      echo "Admin password is required. Pass --admin-password or set ADMIN_PASSWORD." >&2
+      return 1
+    fi
+    read -rsp "Admin password (min 16 chars): " password
+    echo ""
+  fi
+
+  if [ -n "$email" ] && [ -n "$password" ]; then
+    $FRANKENPHP php-cli artisan df:setup \
+      --admin_email "$email" \
+      --admin_password "$password" \
+      --admin_first_name "${ADMIN_FIRST_NAME:-Admin}" \
+      --admin_last_name "${ADMIN_LAST_NAME:-User}" \
+      --admin_phone "${ADMIN_PHONE:-5555555555}" \
+      --force 2>&1 | grep -v "password" || true
+
+    # df:setup can return successfully without creating the admin user in the
+    # embedded binary runtime. Ensure the account exists before marking setup.
+    ensure_admin "$email" "$password"
+  fi
+
+  # Clean up service types not in the quickstart profile.
+  $FRANKENPHP php-cli artisan tinker --execute='
+    if(\Schema::hasTable("service_type")){
+      $remove = ["alloydb","cache_local","cache_memcached","cache_redis","ftp_file","local_file","sftp_file","webdav_file"];
+      $count = \DB::table("service_type")->whereIn("name", $remove)->delete();
+      echo "Cleaned $count unused service types.";
+    }
+  ' 2>/dev/null || true
+
+  # Seed CORS
+  $FRANKENPHP php-cli artisan tinker --execute='
+    if(\Schema::hasTable("cors_config") && \DB::table("cors_config")->count() === 0){
+      \DB::table("cors_config")->insert(["path"=>"*","origin"=>"*","header"=>"*","method"=>"*","max_age"=>0,"supports_credentials"=>false,"enabled"=>true]);
+      echo "CORS config seeded.";
+    }
+  ' 2>/dev/null || true
+
+  if ! admin_exists; then
+    echo "Setup did not create an active system admin." >&2
+    return 1
+  fi
+
+  touch "$STORAGE/.initialized"
+  echo ""
+  echo "Setup complete!"
+}
+
+cmd_serve() {
+  local port="${SERVER_PORT:-8080}"
+  local host="${LISTEN_HOST:-0.0.0.0}"
+  local setup_args=()
+
+  # Parse --port flag
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --host) host="$2"; shift 2 ;;
+      --host=*) host="${1#*=}"; shift ;;
+      --port) port="$2"; shift 2 ;;
+      --port=*) port="${1#*=}"; shift ;;
+      --admin-email|--email)
+        setup_args+=("--admin-email" "$2")
+        shift 2
+        ;;
+      --admin-email=*|--email=*)
+        setup_args+=("--admin-email" "${1#*=}")
+        shift
+        ;;
+      --admin-password|--password)
+        setup_args+=("--admin-password" "$2")
+        shift 2
+        ;;
+      --admin-password=*|--password=*)
+        setup_args+=("--admin-password" "${1#*=}")
+        shift
+        ;;
+      --non-interactive)
+        setup_args+=("--non-interactive")
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  init_storage
+
+  if needs_setup; then
+    run_setup "${setup_args[@]}"
+  fi
+
+  echo ""
+  echo "============================================"
+  echo "  DreamFactory Quickstart"
+  echo "  Admin UI: http://localhost:$port/"
+  echo "  API:      http://localhost:$port/api/v2"
+  echo "  Listen:   http://$host:$port"
+  echo "  Storage:  $STORAGE"
+  echo "============================================"
+  echo ""
+
+  # FrankenPHP cd's into the embedded app dir at startup, so relative Caddy
+  # roots point to the Laravel app within the embed.
+  exec $FRANKENPHP run --config "$(write_caddyfile "$host" "$port")"
+}
+
+cmd_artisan() {
+  init_storage
+  exec $FRANKENPHP php-cli artisan "$@"
+}
+
+cmd_doctor() {
+  init_storage
+  local failures=0
+
+  check() {
+    local name="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then
+      printf 'ok   %s\n' "$name"
+    else
+      printf 'fail %s\n' "$name"
+      failures=$((failures + 1))
+    fi
+  }
+
+  check "frankenphp binary" "$FRANKENPHP" version
+  check "embedded Laravel app" "$FRANKENPHP" php-cli artisan --version
+  check "storage writable" test -w "$STORAGE"
+  check "sqlite database" test -f "$STORAGE/databases/database.sqlite"
+
+  if [ "$($FRANKENPHP php-cli artisan tinker --execute='echo \Schema::hasTable("migrations") ? "yes" : "no";' 2>/dev/null || true)" = "yes" ]; then
+    printf 'ok   migrations table\n'
+  else
+    printf 'fail migrations table\n'
+    failures=$((failures + 1))
+  fi
+
+  if admin_exists; then
+    printf 'ok   active system admin\n'
+  else
+    printf 'fail active system admin\n'
+    failures=$((failures + 1))
+  fi
+
+  if [ "$($FRANKENPHP php-cli artisan tinker --execute='echo file_exists(public_path("dreamfactory/dist/index.html")) ? "yes" : "no";' 2>/dev/null || true)" = "yes" ]; then
+    printf 'ok   admin UI asset\n'
+  else
+    printf 'fail admin UI asset\n'
+    failures=$((failures + 1))
+  fi
+
+  return "$failures"
+}
+
+cmd_reset_admin() {
+  init_storage
+  local email="$(admin_email)"
+  local password="$(admin_password)"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --email) email="$2"; shift 2 ;;
+      --email=*) email="${1#*=}"; shift ;;
+      --password) password="$2"; shift 2 ;;
+      --password=*) password="${1#*=}"; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  if [ -z "$password" ]; then
+    read -rsp "Admin password: " password
+    echo ""
+  fi
+  if [ -z "$email" ]; then
+    read -rp "Admin email: " email
+  fi
+
+  ensure_admin "$email" "$password"
+  echo ""
+}
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+cmd_ai() {
+  local subcommand="${1:-spec}"
+  [ $# -gt 0 ] && shift || true
+
+  case "$subcommand" in
+    spec)
+      cat <<'JSON'
+{
+  "name": "dreamfactory-quickstart",
+  "purpose": "Fast DreamFactory deployment for governed AI data access",
+  "base_url": "http://localhost:8080/api/v2",
+  "auth": {
+    "admin_login": {
+      "method": "POST",
+      "path": "/system/admin/session",
+      "content_type": "application/x-www-form-urlencoded",
+      "returns": "session_token"
+    },
+    "headers": {
+      "session": "X-DreamFactory-Session-Token",
+      "api_key": "X-DreamFactory-API-Key"
+    }
+  },
+  "binary_connectors": ["pgsql", "mysql", "sqlsrv", "sqlite", "rws", "soap"],
+  "docker_connectors": ["pgsql", "mysql", "sqlsrv", "sqlite", "rws", "soap"],
+  "planned_binary_connectors": [],
+  "ai_commands": {
+    "spec": "Print this machine-readable capability document",
+    "login": "Exchange admin credentials for a session token",
+    "plan-service": "Emit a service creation payload template"
+  }
+}
+JSON
+      ;;
+    login)
+      local url="${DREAMFACTORY_URL:-http://localhost:8080/api/v2}"
+      local email="${ADMIN_EMAIL:-}"
+      local password="${ADMIN_PASSWORD:-}"
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --url) url="$2"; shift 2 ;;
+          --url=*) url="${1#*=}"; shift ;;
+          --email) email="$2"; shift 2 ;;
+          --email=*) email="${1#*=}"; shift ;;
+          --password) password="$2"; shift 2 ;;
+          --password=*) password="${1#*=}"; shift ;;
+          *) shift ;;
+        esac
+      done
+      if ! command -v curl >/dev/null 2>&1; then
+        echo "curl is required for ai login" >&2
+        return 1
+      fi
+      curl -s -X POST "$url/system/admin/session" \
+        --data-urlencode "email=$email" \
+        --data-urlencode "password=$password"
+      ;;
+    plan-service)
+      local type="${1:-pgsql}"
+      case "$type" in
+        pgsql|postgres|postgresql)
+          cat <<'JSON'
+{
+  "name": "mydb",
+  "label": "My PostgreSQL Database",
+  "type": "pgsql",
+  "config": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "app",
+    "username": "app",
+    "password": "change-me"
+  }
+}
+JSON
+          ;;
+        mysql|mariadb)
+          cat <<'JSON'
+{
+  "name": "mydb",
+  "label": "My MySQL Database",
+  "type": "mysql",
+  "config": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "app",
+    "username": "app",
+    "password": "change-me"
+  }
+}
+JSON
+          ;;
+        sqlite)
+          cat <<'JSON'
+{
+  "name": "local_sqlite",
+  "label": "Local SQLite Database",
+  "type": "sqlite",
+  "config": {
+    "database": "/path/to/database.sqlite"
+  }
+}
+JSON
+          ;;
+        rws)
+          cat <<'JSON'
+{
+  "name": "remote_api",
+  "label": "Remote REST API",
+  "type": "rws",
+  "config": {
+    "base_url": "https://api.example.com"
+  }
+}
+JSON
+          ;;
+        soap)
+          cat <<'JSON'
+{
+  "name": "soap_api",
+  "label": "SOAP API",
+  "type": "soap",
+  "config": {
+    "wsdl": "https://example.com/service.wsdl"
+  }
+}
+JSON
+          ;;
+        sqlsrv|mssql)
+          cat <<'JSON'
+{
+  "name": "sqlserver",
+  "label": "SQL Server",
+  "type": "sqlsrv",
+  "config": {
+    "host": "localhost",
+    "port": 1433,
+    "database": "app",
+    "username": "sa",
+    "password": "change-me",
+    "encrypt": true,
+    "trust_server_certificate": true
+  }
+}
+JSON
+          ;;
+        *)
+          echo "Unsupported service template: $(json_escape "$type")" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    *)
+      echo "Unknown ai command: $subcommand" >&2
+      return 1
+      ;;
+  esac
+}
+
+# --- Main ---
+case "${1:-serve}" in
+  serve)
+    shift 2>/dev/null || true
+    cmd_serve "$@"
+    ;;
+  setup)
+    shift
+    run_setup "$@"
+    ;;
+  doctor)
+    cmd_doctor
+    ;;
+  reset-admin)
+    shift
+    cmd_reset_admin "$@"
+    ;;
+  ai)
+    shift
+    cmd_ai "$@"
+    ;;
+  migrate)
+    init_storage
+    $FRANKENPHP php-cli artisan migrate --force "$@"
+    ;;
+  artisan)
+    shift
+    cmd_artisan "$@"
+    ;;
+  help|--help|-h)
+    echo "DreamFactory Quickstart — Instant governed APIs from your data"
+    echo ""
+    echo "Usage:"
+    echo "  dreamfactory serve [--host HOST] [--port PORT] [--admin-email EMAIL] [--admin-password PASSWORD]"
+    echo "  dreamfactory setup [--admin-email EMAIL] [--admin-password PASSWORD]"
+    echo "  dreamfactory doctor                Check runtime readiness"
+    echo "  dreamfactory reset-admin           Create or reset the admin user"
+    echo "  dreamfactory ai spec               Print AI helper capabilities"
+    echo "  dreamfactory ai login              Login and print session JSON"
+    echo "  dreamfactory ai plan-service TYPE  Print service payload template"
+    echo "  dreamfactory migrate               Run database migrations"
+    echo "  dreamfactory artisan [...]          Run any artisan command"
+    echo ""
+    echo "Environment:"
+    echo "  DREAMFACTORY_STORAGE   Data directory (default: ~/.dreamfactory)"
+    echo "  ADMIN_EMAIL            Admin email for first-run setup"
+    echo "  ADMIN_PASSWORD         Admin password for first-run setup"
+    echo "  LISTEN_HOST            Bind host (default: 0.0.0.0)"
+    echo "  SERVER_PORT            Listen port (default: 8080)"
+    ;;
+  *)
+    cmd_artisan "$@"
+    ;;
+esac

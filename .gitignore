@@ -1,0 +1,13 @@
+dist/
+.build/
+.tmp/
+.env
+.env.*
+!.env.example
+node_modules/
+vendor/
+*.log
+*.tar.gz
+*.tgz
+.DS_Store
+
