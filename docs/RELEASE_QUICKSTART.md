@@ -63,6 +63,14 @@ From the unpacked directory:
 
 ## Configure Data From The CLI
 
+Fastest local demo:
+
+```bash
+./dreamfactory demo sqlite \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Generate a service payload:
 
 ```bash

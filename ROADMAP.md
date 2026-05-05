@@ -39,6 +39,8 @@ shape:
   `ai plan-service`.
 - First human/LLM CLI service commands exist locally: login, list service
   types, plan service payloads, apply services, and inspect service metadata.
+- SQLite and PostgreSQL are the focused demo paths. SQLite is the no-external
+  dependency golden path; PostgreSQL is the first external database path.
 
 ## Ship The First Internal Demo
 
@@ -90,7 +92,7 @@ Candidate artifact ladder:
 - Make `serve --admin-email --admin-password` the canonical non-interactive path.
 - Keep interactive setup for humans who run without flags.
 - Add `install.sh` only after release artifacts and checksums are stable.
-- Add one-page recipes for PostgreSQL, MySQL, SQL Server, SQLite, RWS, and SOAP.
+- Add one-page recipes for SQLite and PostgreSQL first.
 - Add troubleshooting for ports, storage reset, admin reset, and SQL Server TLS.
 
 ## AI Configuration CLI

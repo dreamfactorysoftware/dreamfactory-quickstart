@@ -8,6 +8,7 @@
 #   dreamfactory doctor                  Check binary runtime readiness
 #   dreamfactory version                 Print package version metadata
 #   dreamfactory login                   Login and print session JSON
+#   dreamfactory demo sqlite             Create and register a local SQLite demo
 #   dreamfactory service supported-types List quickstart-supported service types
 #   dreamfactory service list-types      List available service types
 #   dreamfactory service plan TYPE       Print a service payload template
@@ -460,8 +461,32 @@ require_curl() {
   fi
 }
 
+require_sqlite3() {
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "sqlite3 is required for this command" >&2
+    return 1
+  fi
+}
+
 extract_session_token() {
   sed -n 's/.*"session_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -1
+}
+
+request_json() {
+  local method="$1"
+  local url="$2"
+  local token="$3"
+  local file="${4:-}"
+
+  if [ -n "$file" ]; then
+    curl -s -X "$method" "$url" \
+      -H "Content-Type: application/json" \
+      -H "X-DreamFactory-Session-Token: $token" \
+      --data-binary "@$file"
+  else
+    curl -s -X "$method" "$url" \
+      -H "X-DreamFactory-Session-Token: $token"
+  fi
 }
 
 cmd_login() {
@@ -715,8 +740,7 @@ cmd_service() {
         esac
       done
       token="$(session_token_from_args "$url" "$token" "$email" "$password")"
-      curl -s "$url/system/service_type" \
-        -H "X-DreamFactory-Session-Token: $token"
+      request_json GET "$url/system/service_type" "$token"
       ;;
     plan)
       service_payload_template "${1:-pgsql}"
@@ -748,10 +772,7 @@ cmd_service() {
         return 1
       fi
       token="$(session_token_from_args "$url" "$token" "$email" "$password")"
-      curl -s -X POST "$url/system/service" \
-        -H "Content-Type: application/json" \
-        -H "X-DreamFactory-Session-Token: $token" \
-        --data-binary "@$file"
+      request_json POST "$url/system/service" "$token" "$file"
       ;;
     inspect)
       require_curl
@@ -779,8 +800,7 @@ cmd_service() {
         return 1
       fi
       token="$(session_token_from_args "$url" "$token" "$email" "$password")"
-      curl -s "$url/$name/_table" \
-        -H "X-DreamFactory-Session-Token: $token"
+      request_json GET "$url/$name/_table" "$token"
       ;;
     help|--help|-h)
       echo "Usage:"
@@ -792,6 +812,120 @@ cmd_service() {
       ;;
     *)
       echo "Unknown service command: $subcommand" >&2
+      return 1
+      ;;
+  esac
+}
+
+cmd_demo() {
+  local subcommand="${1:-help}"
+  [ $# -gt 0 ] && shift || true
+
+  case "$subcommand" in
+    sqlite)
+      require_curl
+      require_sqlite3
+      init_storage
+
+      local url="$(api_url)"
+      local token="${DREAMFACTORY_SESSION_TOKEN:-}"
+      local email="${ADMIN_EMAIL:-}"
+      local password="${ADMIN_PASSWORD:-}"
+      local name="demo_sqlite"
+      local db_file="$STORAGE/databases/demo.sqlite"
+      local force="false"
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --url) url="$2"; shift 2 ;;
+          --url=*) url="${1#*=}"; shift ;;
+          --session-token|--token) token="$2"; shift 2 ;;
+          --session-token=*|--token=*) token="${1#*=}"; shift ;;
+          --email) email="$2"; shift 2 ;;
+          --email=*) email="${1#*=}"; shift ;;
+          --password) password="$2"; shift 2 ;;
+          --password=*) password="${1#*=}"; shift ;;
+          --name) name="$2"; shift 2 ;;
+          --name=*) name="${1#*=}"; shift ;;
+          --database) db_file="$2"; shift 2 ;;
+          --database=*) db_file="${1#*=}"; shift ;;
+          --force) force="true"; shift ;;
+          *) shift ;;
+        esac
+      done
+
+      mkdir -p "$(dirname "$db_file")"
+      if [ "$force" = "true" ]; then
+        rm -f "$db_file"
+      fi
+
+      sqlite3 "$db_file" <<'SQL'
+CREATE TABLE IF NOT EXISTS widgets (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);
+DELETE FROM widgets;
+INSERT INTO widgets (id, name, status, quantity, updated_at) VALUES
+  (1, 'starter-kit', 'ready', 42, '2026-05-05T00:00:00Z'),
+  (2, 'field-gateway', 'testing', 12, '2026-05-05T00:00:00Z'),
+  (3, 'analytics-feed', 'ready', 7, '2026-05-05T00:00:00Z');
+CREATE TABLE IF NOT EXISTS sites (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  region TEXT NOT NULL
+);
+DELETE FROM sites;
+INSERT INTO sites (id, name, region) VALUES
+  (1, 'Denver Lab', 'us-west'),
+  (2, 'Austin Demo', 'us-central');
+SQL
+
+      local payload
+      payload="$(mktemp)"
+      cat > "$payload" <<JSON
+{
+  "resource": [
+    {
+      "name": "$name",
+      "label": "DreamFactory SQLite Demo",
+      "type": "sqlite",
+      "is_active": true,
+      "config": {
+        "database": "$db_file"
+      }
+    }
+  ]
+}
+JSON
+
+      token="$(session_token_from_args "$url" "$token" "$email" "$password")"
+      local response
+      response="$(request_json POST "$url/system/service" "$token" "$payload")"
+      rm -f "$payload"
+
+      cat <<JSON
+{
+  "service": "$name",
+  "database": "$db_file",
+  "apply_response": $response,
+  "next": {
+    "tables": "$url/$name/_table",
+    "widgets": "$url/$name/_table/widgets",
+    "sites": "$url/$name/_table/sites"
+  }
+}
+JSON
+      ;;
+    help|--help|-h)
+      echo "Usage:"
+      echo "  dreamfactory demo sqlite [--email EMAIL --password PASSWORD]"
+      echo "  dreamfactory demo sqlite --name demo_sqlite --force"
+      ;;
+    *)
+      echo "Unknown demo command: $subcommand" >&2
       return 1
       ;;
   esac
@@ -830,10 +964,12 @@ cmd_ai() {
     "apply-service": "Create a service from a JSON file",
     "supported-service-types": "List quickstart-supported service types",
     "list-service-types": "List available service types",
-    "inspect-service": "Inspect table metadata for a service"
+    "inspect-service": "Inspect table metadata for a service",
+    "demo-sqlite": "Create and register a local SQLite demo service"
   },
   "human_commands": {
     "login": "Login and print session JSON",
+    "demo sqlite": "Create and register a local SQLite demo service",
     "service list-types": "List available service types",
     "service supported-types": "List quickstart-supported service types",
     "service plan": "Print a service creation payload template",
@@ -861,6 +997,9 @@ JSON
     inspect-service)
       cmd_service inspect "$@"
       ;;
+    demo-sqlite)
+      cmd_demo sqlite "$@"
+      ;;
     *)
       echo "Unknown ai command: $subcommand" >&2
       return 1
@@ -887,6 +1026,10 @@ case "${1:-serve}" in
   login)
     shift
     cmd_login "$@"
+    ;;
+  demo)
+    shift
+    cmd_demo "$@"
     ;;
   service)
     shift
@@ -918,6 +1061,7 @@ case "${1:-serve}" in
     echo "  dreamfactory doctor                Check runtime readiness"
     echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory login                 Login and print session JSON"
+    echo "  dreamfactory demo sqlite           Create and register a local SQLite demo"
     echo "  dreamfactory service supported-types List quickstart-supported service types"
     echo "  dreamfactory service list-types    List available service types"
     echo "  dreamfactory service plan TYPE     Print service payload template"
@@ -929,6 +1073,7 @@ case "${1:-serve}" in
     echo "  dreamfactory ai plan-service TYPE  Print service payload template"
     echo "  dreamfactory ai apply-service --file F Create a service from JSON"
     echo "  dreamfactory ai supported-service-types List quickstart-supported service types"
+    echo "  dreamfactory ai demo-sqlite        Create and register a local SQLite demo"
     echo "  dreamfactory migrate               Run database migrations"
     echo "  dreamfactory artisan [...]          Run any artisan command"
     echo ""
