@@ -6,6 +6,7 @@
 #   ./build-binary.sh                  Build linux/amd64 binary
 #   BRANCH=develop ./build-binary.sh   Build from a specific DF branch
 #   VERSION=0.1.0 ./build-binary.sh    Stamp release metadata
+#   SKIP_DOCKER_BUILD=true ./build-binary.sh  Repackage existing dist binary
 #
 # Output: ./dist/dreamfactory-linux-x86_64
 
@@ -23,6 +24,7 @@ BRANCH="${BRANCH:-master}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 VERSION="${VERSION:-0.1.0-dev}"
 PLATFORM="${PLATFORM:-linux-x86_64}"
+SKIP_DOCKER_BUILD="${SKIP_DOCKER_BUILD:-false}"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 
@@ -31,6 +33,7 @@ echo "  Building DreamFactory Quickstart Binary"
 echo "  Branch: $BRANCH"
 echo "  Version: $VERSION"
 echo "  Platform: $PLATFORM"
+echo "  Skip Docker build: $SKIP_DOCKER_BUILD"
 echo "============================================"
 echo ""
 
@@ -43,22 +46,34 @@ if [ -n "$GITHUB_TOKEN" ]; then
   SECRET_ARGS=(--secret id=github_token,env=GITHUB_TOKEN)
 fi
 
-echo "[1/3] Building static binary (this takes a while)..."
-docker build \
-  $BUILD_ARGS \
-  "${SECRET_ARGS[@]}" \
-  -t "$IMAGE_NAME" \
-  -f static-build.Dockerfile \
-  "$SCRIPT_DIR"
+if [ "$SKIP_DOCKER_BUILD" = "true" ]; then
+  echo "[1/3] Reusing existing static binary..."
+  if [ ! -x "$BINARY_DST" ]; then
+    echo "Missing existing binary: $BINARY_DST" >&2
+    exit 1
+  fi
+  if [ ! -d "$DIST_DIR/odbc-runtime" ]; then
+    echo "Missing existing ODBC runtime: $DIST_DIR/odbc-runtime" >&2
+    exit 1
+  fi
+else
+  echo "[1/3] Building static binary (this takes a while)..."
+  docker build \
+    $BUILD_ARGS \
+    "${SECRET_ARGS[@]}" \
+    -t "$IMAGE_NAME" \
+    -f static-build.Dockerfile \
+    "$SCRIPT_DIR"
 
-echo ""
-echo "[2/3] Extracting binary..."
-docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
-CONTAINER_ID="$(docker create --name "$CONTAINER_NAME" "$IMAGE_NAME")"
-docker cp "$CONTAINER_ID:$BINARY_SRC" "$BINARY_DST"
-rm -rf "$DIST_DIR/odbc-runtime"
-docker cp "$CONTAINER_ID:$ODBC_SRC" "$DIST_DIR/odbc-runtime"
-docker rm "$CONTAINER_NAME"
+  echo ""
+  echo "[2/3] Extracting binary..."
+  docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+  CONTAINER_ID="$(docker create --name "$CONTAINER_NAME" "$IMAGE_NAME")"
+  docker cp "$CONTAINER_ID:$BINARY_SRC" "$BINARY_DST"
+  rm -rf "$DIST_DIR/odbc-runtime"
+  docker cp "$CONTAINER_ID:$ODBC_SRC" "$DIST_DIR/odbc-runtime"
+  docker rm "$CONTAINER_NAME"
+fi
 
 chmod +x "$BINARY_DST"
 
