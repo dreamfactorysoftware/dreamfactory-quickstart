@@ -184,8 +184,6 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
-./dreamfactory mcp config --client claude --session-token "$TOKEN"
 ./dreamfactory mcp config --client cursor --session-token "$TOKEN"
-./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ./dreamfactory mcp config --format text --session-token "$TOKEN"
 ```

@@ -7,8 +7,10 @@ archive was already built and published for the user's platform.
 
 Download these files into the same directory:
 
-- `dreamfactory-quickstart-linux-x86_64.tar.gz`
-- `SHA256SUMS`
+```bash
+curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/dreamfactory-quickstart-linux-x86_64.tar.gz
+curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/SHA256SUMS
+```
 
 Verify the archive:
 
@@ -160,9 +162,7 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
-./dreamfactory mcp config --client claude --session-token "$TOKEN"
 ./dreamfactory mcp config --client cursor --session-token "$TOKEN"
-./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ```
 
 After a PostgreSQL service named `app_pgsql` is registered, clients should see

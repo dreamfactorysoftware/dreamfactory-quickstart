@@ -202,9 +202,7 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
-./dreamfactory mcp config --client claude --session-token "$TOKEN"
 ./dreamfactory mcp config --client cursor --session-token "$TOKEN"
-./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ```
 
 The MCP daemon exposes tools such as `demo_pgsql_get_tables`,
