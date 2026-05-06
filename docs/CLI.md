@@ -67,6 +67,20 @@ DreamFactory API table list, prints MCP client config, and emits starter prompts
   --password YourPassword123456
 ```
 
+Use text output for a human-readable handoff:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --format text \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Register an existing PostgreSQL database without seeding demo data:
 
 ```bash
@@ -170,4 +184,8 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
+./dreamfactory mcp config --client claude --session-token "$TOKEN"
+./dreamfactory mcp config --client cursor --session-token "$TOKEN"
+./dreamfactory mcp config --client codex --session-token "$TOKEN"
+./dreamfactory mcp config --format text --session-token "$TOKEN"
 ```

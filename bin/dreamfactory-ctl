@@ -586,6 +586,8 @@ cmd_mcp() {
       local url="$(api_url)"
       local token="${DREAMFACTORY_SESSION_TOKEN:-}"
       local service="${MCP_SERVICE_NAME:-local}"
+      local client="generic"
+      local format="json"
       while [[ $# -gt 0 ]]; do
         case "$1" in
           --url) url="$2"; shift 2 ;;
@@ -594,13 +596,110 @@ cmd_mcp() {
           --session-token=*|--token=*) token="${1#*=}"; shift ;;
           --service|--mcp-service) service="$2"; shift 2 ;;
           --service=*|--mcp-service=*) service="${1#*=}"; shift ;;
+          --client) client="$2"; shift 2 ;;
+          --client=*) client="${1#*=}"; shift ;;
+          --format) format="$2"; shift 2 ;;
+          --format=*) format="${1#*=}"; shift ;;
           *) shift ;;
         esac
       done
+
+      local endpoint
+      endpoint="$(mcp_url)/mcp/$service"
+      case "$format" in
+        text)
+          cat <<TEXT
+MCP endpoint: $endpoint
+DreamFactory API: $url
+
+Headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  X-Mcp-Base-Url: $url
+  X-DreamFactory-Session-Token: $token
+
+Plain-language questions are handled by the LLM client; DreamFactory exposes the authenticated data tools.
+TEXT
+          return 0
+          ;;
+        json) ;;
+        *)
+          echo "Unsupported MCP config format: $format" >&2
+          return 1
+          ;;
+      esac
+
+      case "$client" in
+        generic)
+          ;;
+        claude)
+          cat <<JSON
+{
+  "client": "claude",
+  "type": "streamable-http",
+  "url": "$(json_escape "$endpoint")",
+  "headers": {
+    "Accept": "application/json, text/event-stream",
+    "Content-Type": "application/json",
+    "X-Mcp-Base-Url": "$(json_escape "$url")",
+    "X-DreamFactory-Session-Token": "$(json_escape "$token")"
+  },
+  "notes": [
+    "Use this as the DreamFactory MCP server entry in a client that supports streamable HTTP MCP.",
+    "If your Claude client only supports stdio MCP servers, use an MCP proxy or connector that can forward streamable HTTP."
+  ]
+}
+JSON
+          return 0
+          ;;
+        cursor)
+          cat <<JSON
+{
+  "mcpServers": {
+    "dreamfactory": {
+      "type": "streamable-http",
+      "url": "$(json_escape "$endpoint")",
+      "headers": {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "X-Mcp-Base-Url": "$(json_escape "$url")",
+        "X-DreamFactory-Session-Token": "$(json_escape "$token")"
+      }
+    }
+  }
+}
+JSON
+          return 0
+          ;;
+        codex)
+          cat <<JSON
+{
+  "mcp_servers": {
+    "dreamfactory": {
+      "transport": "streamable-http",
+      "url": "$(json_escape "$endpoint")",
+      "headers": {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "X-Mcp-Base-Url": "$(json_escape "$url")",
+        "X-DreamFactory-Session-Token": "$(json_escape "$token")"
+      }
+    }
+  }
+}
+JSON
+          return 0
+          ;;
+        *)
+          echo "Unsupported MCP client: $client. Use generic, claude, cursor, or codex." >&2
+          return 1
+          ;;
+      esac
+
       cat <<JSON
 {
   "transport": "streamable-http",
-  "mcp_url": "$(mcp_url)/mcp/$(json_escape "$service")",
+  "mcp_url": "$(json_escape "$endpoint")",
   "dreamfactory_api_url": "$(json_escape "$url")",
   "headers": {
     "Accept": "application/json, text/event-stream",
@@ -622,6 +721,8 @@ JSON
       echo "  dreamfactory mcp doctor            Check MCP bundle and daemon health"
       echo "  dreamfactory mcp url               Print MCP daemon URL"
       echo "  dreamfactory mcp config            Print MCP client connection JSON"
+      echo "  dreamfactory mcp config --client claude|cursor|codex"
+      echo "  dreamfactory mcp config --format text"
       ;;
     *)
       echo "Unknown mcp command: $subcommand" >&2
@@ -1418,6 +1519,7 @@ cmd_quickstart() {
       local password="${ADMIN_PASSWORD:-}"
       local service_name="app_pgsql"
       local mcp_service="${MCP_SERVICE_NAME:-local}"
+      local format="json"
       local args=("$@")
 
       while [[ $# -gt 0 ]]; do
@@ -1434,14 +1536,33 @@ cmd_quickstart() {
           --name=*|--service-name=*) service_name="${1#*=}"; shift ;;
           --service|--mcp-service) mcp_service="$2"; shift 2 ;;
           --service=*|--mcp-service=*) mcp_service="${1#*=}"; shift ;;
+          --format) format="$2"; shift 2 ;;
+          --format=*) format="${1#*=}"; shift ;;
           *) shift ;;
+        esac
+      done
+
+      local connect_args=()
+      local i=0
+      while [ "$i" -lt "${#args[@]}" ]; do
+        case "${args[$i]}" in
+          --format)
+            i=$((i + 2))
+            ;;
+          --format=*)
+            i=$((i + 1))
+            ;;
+          *)
+            connect_args+=("${args[$i]}")
+            i=$((i + 1))
+            ;;
         esac
       done
 
       token="$(session_token_from_args "$url" "$token" "$email" "$password")"
 
       local connect_response
-      connect_response="$(cmd_pgsql connect "${args[@]}" --url "$url" --session-token "$token" --name "$service_name")"
+      connect_response="$(cmd_pgsql connect "${connect_args[@]}" --url "$url" --session-token "$token" --name "$service_name")"
 
       local tables_response
       tables_response="$(request_json GET "$url/$service_name/_table" "$token")"
@@ -1464,6 +1585,35 @@ cmd_quickstart() {
 
       local mcp_config
       mcp_config="$(DREAMFACTORY_SESSION_TOKEN="$token" cmd_mcp config --url "$url" --service "$mcp_service")"
+
+      case "$format" in
+        text)
+          cat <<TEXT
+Connected: $service_name
+Verified table list: $verified
+API tables: $url/$service_name/_table
+MCP endpoint: $(mcp_url)/mcp/$mcp_service
+
+Try asking:
+  List the tables in my PostgreSQL database.
+  Show me 10 rows from $first_table.
+  Summarize the schema for $first_table and suggest useful API endpoints.
+  Identify fields in $first_table that may contain sensitive data.
+
+Client config:
+  dreamfactory mcp config --session-token "$token"
+  dreamfactory mcp config --client claude --session-token "$token"
+  dreamfactory mcp config --client cursor --session-token "$token"
+  dreamfactory mcp config --client codex --session-token "$token"
+TEXT
+          return 0
+          ;;
+        json) ;;
+        *)
+          echo "Unsupported quickstart format: $format" >&2
+          return 1
+          ;;
+      esac
 
       cat <<JSON
 {
@@ -1490,6 +1640,7 @@ JSON
       echo "Usage:"
       echo "  dreamfactory quickstart pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS [--email EMAIL --password PASSWORD]"
       echo "  dreamfactory quickstart pgsql --name app_pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS"
+      echo "  dreamfactory quickstart pgsql --format text --db-host HOST --db-name DB --db-user USER --db-password PASS"
       ;;
     *)
       echo "Unknown quickstart command: $subcommand" >&2

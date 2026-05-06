@@ -101,6 +101,20 @@ Use the guided PostgreSQL path for the lowest-friction first run:
 The command registers the service, verifies the DreamFactory table-list API,
 prints MCP client config, and emits starter prompts for the LLM client.
 
+For human-readable output:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --format text \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Connect an existing PostgreSQL database without the extra quickstart output:
 
 ```bash
@@ -146,6 +160,9 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
+./dreamfactory mcp config --client claude --session-token "$TOKEN"
+./dreamfactory mcp config --client cursor --session-token "$TOKEN"
+./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ```
 
 After a PostgreSQL service named `app_pgsql` is registered, clients should see

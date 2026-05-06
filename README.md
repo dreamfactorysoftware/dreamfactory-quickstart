@@ -128,6 +128,9 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory service plan pgsql > service.json
 ./dreamfactory service apply --file service.json --email you@company.example --password YourPassword123456
 ./dreamfactory mcp config --session-token "$TOKEN"
+./dreamfactory mcp config --client claude --session-token "$TOKEN"
+./dreamfactory mcp config --client cursor --session-token "$TOKEN"
+./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ./dreamfactory reset-admin --email you@company.example --password NewPassword123456
 ./dreamfactory artisan route:list
 ```
@@ -188,6 +191,7 @@ without scraping docs.
 ./dreamfactory ai list-service-types --session-token "$TOKEN"
 ./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
 ./dreamfactory ai mcp-config --session-token "$TOKEN"
+./dreamfactory ai mcp-config --client cursor --session-token "$TOKEN"
 ./dreamfactory ai login \
   --url http://localhost:8080/api/v2 \
   --email you@company.example \

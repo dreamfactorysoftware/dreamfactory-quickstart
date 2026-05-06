@@ -18,6 +18,20 @@ prints MCP client config, and emits starter prompts:
   --password YourPassword123456
 ```
 
+For a human-readable summary instead of JSON:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --format text \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Use `pgsql connect` when you only want to register the service:
 
 ```bash
@@ -188,6 +202,9 @@ TOKEN="$(./dreamfactory login \
   --token-only)"
 
 ./dreamfactory mcp config --session-token "$TOKEN"
+./dreamfactory mcp config --client claude --session-token "$TOKEN"
+./dreamfactory mcp config --client cursor --session-token "$TOKEN"
+./dreamfactory mcp config --client codex --session-token "$TOKEN"
 ```
 
 The MCP daemon exposes tools such as `demo_pgsql_get_tables`,

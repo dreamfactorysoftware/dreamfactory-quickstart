@@ -152,6 +152,10 @@ QUICKSTART_JSON="$("$DREAMFACTORY" quickstart pgsql \
   --db-password dfpass)"
 printf '%s' "$QUICKSTART_JSON" | jq -e '.status == "ready" and .verified.table_list == true' >/dev/null
 printf '%s' "$QUICKSTART_JSON" | jq -e '.mcp.mcp_url | contains("/mcp/local")' >/dev/null
+"$DREAMFACTORY" mcp config \
+  --client cursor \
+  --url "http://127.0.0.1:$DF_PORT/api/v2" \
+  --session-token "$TOKEN" | jq -e '.mcpServers.dreamfactory.url | contains("/mcp/local")' >/dev/null
 
 echo "[5/7] Checking DreamFactory PostgreSQL API"
 DF_ROWS="$(curl -fsS \
