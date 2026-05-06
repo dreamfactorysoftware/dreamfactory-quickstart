@@ -74,7 +74,7 @@ RUN cp .env-dist .env && \
     sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env && \
     sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env && \
     sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env && \
-    sed -i 's/^DF_INSTALL=.*/DF_INSTALL=binary quickstart/' .env
+    sed -i 's/^DF_INSTALL=.*/DF_INSTALL="binary quickstart"/' .env
 
 # Create storage skeleton (will be copied to persistent path at runtime)
 RUN mkdir -p storage/app storage/databases \
