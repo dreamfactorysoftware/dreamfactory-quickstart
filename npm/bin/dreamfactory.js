@@ -20,6 +20,7 @@ const cacheRoot = process.env.DREAMFACTORY_QUICKSTART_CACHE ||
   path.join(os.homedir(), ".cache", "dreamfactory-quickstart");
 const installDir = path.join(cacheRoot, version, platform, "dreamfactory-quickstart");
 const binaryPath = path.join(installDir, "dreamfactory");
+const args = process.argv.slice(2);
 
 main().catch((error) => {
   console.error(error.message || error);
@@ -27,11 +28,16 @@ main().catch((error) => {
 });
 
 async function main() {
+  if (args[0] === "cache") {
+    handleCacheCommand(args.slice(1));
+    return;
+  }
+
   if (!fs.existsSync(binaryPath)) {
     await install();
   }
 
-  const child = spawn(binaryPath, process.argv.slice(2), {
+  const child = spawn(binaryPath, args.length > 0 ? args : ["help"], {
     stdio: "inherit",
     env: process.env
   });
@@ -43,6 +49,30 @@ async function main() {
     }
     process.exit(code ?? 1);
   });
+}
+
+function handleCacheCommand(cacheArgs) {
+  switch (cacheArgs[0] || "info") {
+    case "info":
+      console.log(JSON.stringify({
+        package: packageJson.name,
+        package_version: packageJson.version,
+        release: version,
+        platform,
+        cache_root: cacheRoot,
+        install_dir: installDir,
+        installed: fs.existsSync(binaryPath),
+        binary: binaryPath
+      }, null, 2));
+      break;
+    case "clean":
+      fs.rmSync(path.dirname(installDir), { recursive: true, force: true });
+      console.log(`Removed DreamFactory Quickstart cache for ${version} ${platform}`);
+      break;
+    default:
+      console.error("Usage: dreamfactory cache [info|clean]");
+      process.exit(1);
+  }
 }
 
 function detectPlatform() {

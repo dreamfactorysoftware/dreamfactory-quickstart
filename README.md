@@ -39,6 +39,14 @@ Run with npm:
 npx @dreamfactory/quickstart serve
 ```
 
+The npm launcher downloads the matching GitHub release on first use and caches
+it under `~/.cache/dreamfactory-quickstart`.
+
+```bash
+npx @dreamfactory/quickstart cache info
+npx @dreamfactory/quickstart cache clean
+```
+
 Or install the latest Linux x86_64 release:
 
 ```bash
