@@ -36,11 +36,18 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - name: Check out MCP package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-mcp-server
+          path: .build/df-mcp-server-source
+
       - name: Build quickstart archive
         env:
           GITHUB_TOKEN: ${{ secrets.DF_BUILD_GITHUB_TOKEN || github.token }}
           VERSION: ${{ steps.release.outputs.version }}
           INCLUDE_MCP: "true"
+          MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-mcp-server-source
         run: ./build-binary.sh
 
       - name: Smoke test archive
