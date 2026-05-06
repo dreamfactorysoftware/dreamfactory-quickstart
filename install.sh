@@ -68,7 +68,7 @@ rm -rf "$INSTALL_DIR"
 mv "$TMP_DIR/extract/dreamfactory-quickstart" "$INSTALL_DIR"
 cat > "$BIN_DIR/dreamfactory" <<LAUNCHER
 #!/usr/bin/env bash
-export DF_INSTALL="\${DF_INSTALL:-Quickstart Installer}"
+export DF_INSTALL="\${DF_INSTALL:-binary quickstart}"
 exec "$INSTALL_DIR/dreamfactory" "\$@"
 LAUNCHER
 chmod +x "$BIN_DIR/dreamfactory"

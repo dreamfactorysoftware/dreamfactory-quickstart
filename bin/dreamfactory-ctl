@@ -56,7 +56,7 @@ fi
 
 STORAGE="${DREAMFACTORY_STORAGE:-$HOME/.dreamfactory}"
 export LARAVEL_STORAGE_PATH="$STORAGE"
-export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
+export DF_INSTALL="${DF_INSTALL:-binary quickstart}"
 MCP_DAEMON_DIR="$SCRIPT_DIR/mcp-daemon"
 MCP_NODE="$SCRIPT_DIR/node/bin/node"
 MCP_PID=""
@@ -206,11 +206,11 @@ needs_setup() {
 
 write_install_marker() {
   require_frankenphp
-  export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
+  export DF_INSTALL="${DF_INSTALL:-binary quickstart}"
 
   DF_INSTALL="$DF_INSTALL" $FRANKENPHP php-cli artisan tinker --execute='
     \DreamFactory\Core\Utility\FileUtilities::updateEnvSetting([
-      "DF_INSTALL" => getenv("DF_INSTALL") ?: "Quickstart Archive"
+      "DF_INSTALL" => getenv("DF_INSTALL") ?: "binary quickstart"
     ]);
   ' >/dev/null 2>&1 || true
 }
@@ -251,20 +251,17 @@ ensure_admin() {
       $user->save();
       echo "Admin ready.";
     } else {
-      \DB::table("user")->insert([
+      \DreamFactory\Core\Models\User::createFirstAdmin([
         "name" => trim((getenv("ADMIN_FIRST_NAME") ?: "Admin") . " " . (getenv("ADMIN_LAST_NAME") ?: "User")),
         "first_name" => getenv("ADMIN_FIRST_NAME") ?: "Admin",
         "last_name" => getenv("ADMIN_LAST_NAME") ?: "User",
         "email" => $email,
         "username" => $email,
-        "password" => \Hash::make($password),
-        "is_sys_admin" => true,
-        "is_active" => true,
-        "phone" => getenv("ADMIN_PHONE") ?: "5555555555",
-        "created_date" => now(),
-        "last_modified_date" => now()
+        "password" => $password,
+        "password_confirmation" => $password,
+        "phone" => getenv("ADMIN_PHONE") ?: "5555555555"
       ]);
-      echo "Admin inserted.";
+      echo "Admin created.";
     }
   '
 }
@@ -316,7 +313,7 @@ CADDY
 run_setup() {
   require_frankenphp
   init_storage
-  export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
+  export DF_INSTALL="${DF_INSTALL:-binary quickstart}"
   write_install_marker
 
   local email="${ADMIN_EMAIL:-}"

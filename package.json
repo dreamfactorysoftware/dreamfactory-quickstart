@@ -1,6 +1,6 @@
 {
   "name": "@dreamfactory/quickstart",
-  "version": "0.1.1-mcp",
+  "version": "0.1.2-mcp",
   "description": "One-command DreamFactory quickstart launcher for governed API and LLM data access.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/dreamfactorysoftware/dreamfactory-quickstart#readme",

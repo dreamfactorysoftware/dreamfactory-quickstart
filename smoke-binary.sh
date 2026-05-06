@@ -96,7 +96,7 @@ for _ in $(seq 1 90); do
         echo "[5/5] Checking doctor and AI login"
         DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" doctor
         install_type="$(DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" artisan tinker --execute='echo env("DF_INSTALL", "");' 2>/dev/null | tail -1)"
-        expected_install_type="${EXPECTED_DF_INSTALL:-Quickstart Archive}"
+        expected_install_type="${EXPECTED_DF_INSTALL:-binary quickstart}"
         if [ "$install_type" != "$expected_install_type" ]; then
           echo "Expected DF_INSTALL=$expected_install_type, got: ${install_type:-<empty>}" >&2
           exit 1

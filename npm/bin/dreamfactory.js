@@ -41,7 +41,7 @@ async function main() {
     stdio: "inherit",
     env: {
       ...process.env,
-      DF_INSTALL: process.env.DF_INSTALL || "Quickstart npm"
+      DF_INSTALL: process.env.DF_INSTALL || "npm quickstart"
     }
   });
 
