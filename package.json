@@ -12,8 +12,8 @@
     "url": "https://github.com/dreamfactorysoftware/dreamfactory-quickstart/issues"
   },
   "bin": {
-    "dreamfactory": "./npm/bin/dreamfactory.js",
-    "dreamfactory-quickstart": "./npm/bin/dreamfactory.js"
+    "dreamfactory": "npm/bin/dreamfactory.js",
+    "dreamfactory-quickstart": "npm/bin/dreamfactory.js"
   },
   "files": [
     "npm/bin/dreamfactory.js",
