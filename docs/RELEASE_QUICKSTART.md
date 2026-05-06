@@ -85,7 +85,23 @@ archive:
 
 ## Configure Data From The CLI
 
-Connect an existing PostgreSQL database:
+Use the guided PostgreSQL path for the lowest-friction first run:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+The command registers the service, verifies the DreamFactory table-list API,
+prints MCP client config, and emits starter prompts for the LLM client.
+
+Connect an existing PostgreSQL database without the extra quickstart output:
 
 ```bash
 ./dreamfactory pgsql connect \

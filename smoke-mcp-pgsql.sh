@@ -139,8 +139,8 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
-echo "[4/7] Registering PostgreSQL service"
-"$DREAMFACTORY" pgsql connect \
+echo "[4/7] Running PostgreSQL quickstart"
+QUICKSTART_JSON="$("$DREAMFACTORY" quickstart pgsql \
   --url "http://127.0.0.1:$DF_PORT/api/v2" \
   --session-token "$TOKEN" \
   --name demo_pgsql \
@@ -149,7 +149,9 @@ echo "[4/7] Registering PostgreSQL service"
   --db-port "$PG_PORT" \
   --db-name dfdemo \
   --db-user dfuser \
-  --db-password dfpass >/dev/null
+  --db-password dfpass)"
+printf '%s' "$QUICKSTART_JSON" | jq -e '.status == "ready" and .verified.table_list == true' >/dev/null
+printf '%s' "$QUICKSTART_JSON" | jq -e '.mcp.mcp_url | contains("/mcp/local")' >/dev/null
 
 echo "[5/7] Checking DreamFactory PostgreSQL API"
 DF_ROWS="$(curl -fsS \

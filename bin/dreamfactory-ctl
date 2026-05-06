@@ -11,6 +11,7 @@
 #   dreamfactory mcp serve               Start only the bundled MCP daemon
 #   dreamfactory version                 Print package version metadata
 #   dreamfactory login                   Login and print session JSON
+#   dreamfactory quickstart pgsql        Connect PostgreSQL and print next steps
 #   dreamfactory pgsql connect           Register a PostgreSQL service
 #   dreamfactory demo pgsql              Create and register a PostgreSQL demo
 #   dreamfactory demo sqlite             Create and register a local SQLite demo
@@ -1403,6 +1404,100 @@ JSON
   esac
 }
 
+cmd_quickstart() {
+  local subcommand="${1:-help}"
+  [ $# -gt 0 ] && shift || true
+
+  case "$subcommand" in
+    pgsql|postgres|postgresql)
+      require_curl
+
+      local url="$(api_url)"
+      local token="${DREAMFACTORY_SESSION_TOKEN:-}"
+      local email="${ADMIN_EMAIL:-}"
+      local password="${ADMIN_PASSWORD:-}"
+      local service_name="app_pgsql"
+      local mcp_service="${MCP_SERVICE_NAME:-local}"
+      local args=("$@")
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --url) url="$2"; shift 2 ;;
+          --url=*) url="${1#*=}"; shift ;;
+          --session-token|--token) token="$2"; shift 2 ;;
+          --session-token=*|--token=*) token="${1#*=}"; shift ;;
+          --email|--admin-email) email="$2"; shift 2 ;;
+          --email=*|--admin-email=*) email="${1#*=}"; shift ;;
+          --password|--admin-password) password="$2"; shift 2 ;;
+          --password=*|--admin-password=*) password="${1#*=}"; shift ;;
+          --name|--service-name) service_name="$2"; shift 2 ;;
+          --name=*|--service-name=*) service_name="${1#*=}"; shift ;;
+          --service|--mcp-service) mcp_service="$2"; shift 2 ;;
+          --service=*|--mcp-service=*) mcp_service="${1#*=}"; shift ;;
+          *) shift ;;
+        esac
+      done
+
+      token="$(session_token_from_args "$url" "$token" "$email" "$password")"
+
+      local connect_response
+      connect_response="$(cmd_pgsql connect "${args[@]}" --url "$url" --session-token "$token" --name "$service_name")"
+
+      local tables_response
+      tables_response="$(request_json GET "$url/$service_name/_table" "$token")"
+
+      local verified="false"
+      if printf '%s' "$tables_response" | grep -q '"resource"'; then
+        verified="true"
+      fi
+
+      local first_table=""
+      if command -v jq >/dev/null 2>&1; then
+        first_table="$(printf '%s' "$tables_response" | jq -r '.resource[0].name // .resource[0] // empty' 2>/dev/null || true)"
+      fi
+      if [ -z "$first_table" ]; then
+        first_table="$(printf '%s' "$tables_response" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+      fi
+      if [ -z "$first_table" ]; then
+        first_table="your_table"
+      fi
+
+      local mcp_config
+      mcp_config="$(DREAMFACTORY_SESSION_TOKEN="$token" cmd_mcp config --url "$url" --service "$mcp_service")"
+
+      cat <<JSON
+{
+  "status": "ready",
+  "service": "$(json_escape "$service_name")",
+  "dreamfactory_api_url": "$(json_escape "$url")",
+  "verified": {
+    "table_list": $verified,
+    "tables_endpoint": "$(json_escape "$url")/$(json_escape "$service_name")/_table"
+  },
+  "connect": $connect_response,
+  "tables": $tables_response,
+  "mcp": $mcp_config,
+  "suggested_prompts": [
+    "List the tables in my PostgreSQL database.",
+    "Show me 10 rows from $(json_escape "$first_table").",
+    "Summarize the schema for $(json_escape "$first_table") and suggest useful API endpoints.",
+    "Identify fields in $(json_escape "$first_table") that may contain sensitive data."
+  ]
+}
+JSON
+      ;;
+    help|--help|-h)
+      echo "Usage:"
+      echo "  dreamfactory quickstart pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS [--email EMAIL --password PASSWORD]"
+      echo "  dreamfactory quickstart pgsql --name app_pgsql --db-host HOST --db-name DB --db-user USER --db-password PASS"
+      ;;
+    *)
+      echo "Unknown quickstart command: $subcommand" >&2
+      return 1
+      ;;
+  esac
+}
+
 cmd_ai() {
   local subcommand="${1:-spec}"
   [ $# -gt 0 ] && shift || true
@@ -1437,6 +1532,7 @@ cmd_ai() {
   "ai_commands": {
     "spec": "Print this machine-readable capability document",
     "login": "Exchange admin credentials for a session token",
+    "quickstart-pgsql": "Register PostgreSQL, verify the API, print MCP config, and emit starter prompts",
     "pgsql-connect": "Register an existing PostgreSQL database as a DreamFactory service",
     "plan-service": "Emit a service creation payload template",
     "apply-service": "Create a service from a JSON file",
@@ -1450,6 +1546,7 @@ cmd_ai() {
   },
   "human_commands": {
     "login": "Login and print session JSON",
+    "quickstart pgsql": "Register PostgreSQL, verify the API, print MCP config, and emit starter prompts",
     "pgsql connect": "Register an existing PostgreSQL database as a DreamFactory service",
     "demo pgsql": "Seed and register a PostgreSQL demo service",
     "demo sqlite": "Create and register a local SQLite smoke-test service",
@@ -1467,6 +1564,9 @@ JSON
       ;;
     login)
       cmd_login "$@"
+      ;;
+    quickstart-pgsql)
+      cmd_quickstart pgsql "$@"
       ;;
     pgsql-connect)
       cmd_pgsql connect "$@"
@@ -1525,6 +1625,10 @@ case "${1:-serve}" in
     shift
     cmd_login "$@"
     ;;
+  quickstart)
+    shift
+    cmd_quickstart "$@"
+    ;;
   pgsql)
     shift
     cmd_pgsql "$@"
@@ -1570,6 +1674,7 @@ case "${1:-serve}" in
     echo "  dreamfactory mcp serve             Start only the bundled MCP daemon"
     echo "  dreamfactory version               Print package version metadata"
     echo "  dreamfactory login                 Login and print session JSON"
+    echo "  dreamfactory quickstart pgsql      Connect PostgreSQL and print next steps"
     echo "  dreamfactory pgsql connect         Register a PostgreSQL service"
     echo "  dreamfactory demo pgsql            Create and register a PostgreSQL demo"
     echo "  dreamfactory demo sqlite           Create and register a local SQLite smoke test"
@@ -1581,6 +1686,7 @@ case "${1:-serve}" in
     echo "  dreamfactory reset-admin           Create or reset the admin user"
     echo "  dreamfactory ai spec               Print AI helper capabilities"
     echo "  dreamfactory ai login              Login and print session JSON"
+    echo "  dreamfactory ai quickstart-pgsql   Connect PostgreSQL and print next steps"
     echo "  dreamfactory ai pgsql-connect      Register a PostgreSQL service"
     echo "  dreamfactory ai plan-service TYPE  Print service payload template"
     echo "  dreamfactory ai apply-service --file F Create a service from JSON"

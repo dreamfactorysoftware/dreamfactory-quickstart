@@ -53,6 +53,20 @@ Use `DREAMFACTORY_URL` when the API is not at `http://localhost:8080/api/v2`.
 
 ## Services
 
+Run the guided PostgreSQL path. This registers the service, verifies the
+DreamFactory API table list, prints MCP client config, and emits starter prompts:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Register an existing PostgreSQL database without seeding demo data:
 
 ```bash
@@ -130,6 +144,7 @@ The `ai` namespace keeps stable machine-readable aliases:
 ```bash
 ./dreamfactory ai spec
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
+./dreamfactory ai quickstart-pgsql --name app_pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai pgsql-connect --name app_pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-sqlite --email you@company.example --password YourPassword123456

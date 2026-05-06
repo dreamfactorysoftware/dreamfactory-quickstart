@@ -3,8 +3,22 @@
 This is the primary product demo path. It connects DreamFactory to PostgreSQL,
 seeds a real table, registers a service, and exposes the data through the API.
 
-For real user data, use `pgsql connect`. It registers an existing PostgreSQL
-database without creating or replacing sample tables:
+For real user data, use `quickstart pgsql`. It registers an existing PostgreSQL
+database without creating or replacing sample tables, verifies the API path,
+prints MCP client config, and emits starter prompts:
+
+```bash
+./dreamfactory quickstart pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+Use `pgsql connect` when you only want to register the service:
 
 ```bash
 ./dreamfactory pgsql connect \
@@ -123,6 +137,14 @@ curl -s http://localhost:8080/api/v2/demo_pgsql/_table/widgets \
 ## LLM-Oriented Equivalent
 
 ```bash
+./dreamfactory ai quickstart-pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory ai pgsql-connect \
   --name app_pgsql \
   --db-host localhost \

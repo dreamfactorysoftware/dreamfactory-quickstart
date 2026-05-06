@@ -100,6 +100,14 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory serve --with-mcp
 ./dreamfactory mcp doctor
 ./dreamfactory login --email you@company.example --password YourPassword123456
+./dreamfactory quickstart pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory pgsql connect \
   --name app_pgsql \
   --db-host localhost \
@@ -149,6 +157,14 @@ without scraping docs.
 
 ```bash
 ./dreamfactory ai spec
+./dreamfactory ai quickstart-pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory ai pgsql-connect \
   --name app_pgsql \
   --db-host localhost \
