@@ -53,6 +53,19 @@ Use `DREAMFACTORY_URL` when the API is not at `http://localhost:8080/api/v2`.
 
 ## Services
 
+Register an existing PostgreSQL database without seeding demo data:
+
+```bash
+./dreamfactory pgsql connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 Create the primary PostgreSQL demo service:
 
 ```bash
@@ -117,12 +130,29 @@ The `ai` namespace keeps stable machine-readable aliases:
 ```bash
 ./dreamfactory ai spec
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
+./dreamfactory ai pgsql-connect --name app_pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-sqlite --email you@company.example --password YourPassword123456
 ./dreamfactory ai mcp-doctor
+./dreamfactory ai mcp-config --session-token "$TOKEN"
 ./dreamfactory ai plan-service sqlsrv
 ./dreamfactory ai apply-service --file service.json --session-token "$TOKEN"
 ./dreamfactory ai supported-service-types
 ./dreamfactory ai list-service-types --session-token "$TOKEN"
 ./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
+```
+
+## MCP Client Config
+
+MCP-enabled archives can print the local streamable HTTP config an LLM client
+needs. The client supplies the plain-language reasoning; DreamFactory supplies
+the authenticated data tools.
+
+```bash
+TOKEN="$(./dreamfactory login \
+  --email you@company.example \
+  --password YourPassword123456 \
+  --token-only)"
+
+./dreamfactory mcp config --session-token "$TOKEN"
 ```

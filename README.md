@@ -79,6 +79,7 @@ Build the MCP-enabled artifact used for agent/client evaluations:
 ```bash
 INCLUDE_MCP=true GITHUB_TOKEN="$(gh auth token)" ./build-binary.sh
 ./smoke-binary.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
+./smoke-mcp-pgsql.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
 ```
 
 Build outputs:
@@ -99,6 +100,14 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory serve --with-mcp
 ./dreamfactory mcp doctor
 ./dreamfactory login --email you@company.example --password YourPassword123456
+./dreamfactory pgsql connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory demo pgsql \
   --db-host localhost \
   --db-name app \
@@ -110,6 +119,7 @@ The archive includes `VERSION` and `release.json` metadata.
 ./dreamfactory service list-types --email you@company.example --password YourPassword123456
 ./dreamfactory service plan pgsql > service.json
 ./dreamfactory service apply --file service.json --email you@company.example --password YourPassword123456
+./dreamfactory mcp config --session-token "$TOKEN"
 ./dreamfactory reset-admin --email you@company.example --password NewPassword123456
 ./dreamfactory artisan route:list
 ```
@@ -139,6 +149,14 @@ without scraping docs.
 
 ```bash
 ./dreamfactory ai spec
+./dreamfactory ai pgsql-connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory ai plan-service pgsql
 ./dreamfactory ai demo-pgsql \
   --db-host localhost \
@@ -153,6 +171,7 @@ without scraping docs.
 ./dreamfactory ai supported-service-types
 ./dreamfactory ai list-service-types --session-token "$TOKEN"
 ./dreamfactory ai inspect-service mydb --session-token "$TOKEN"
+./dreamfactory ai mcp-config --session-token "$TOKEN"
 ./dreamfactory ai login \
   --url http://localhost:8080/api/v2 \
   --email you@company.example \

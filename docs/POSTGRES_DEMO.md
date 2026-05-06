@@ -3,6 +3,20 @@
 This is the primary product demo path. It connects DreamFactory to PostgreSQL,
 seeds a real table, registers a service, and exposes the data through the API.
 
+For real user data, use `pgsql connect`. It registers an existing PostgreSQL
+database without creating or replacing sample tables:
+
+```bash
+./dreamfactory pgsql connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
 ## 1. Prepare PostgreSQL
 
 Create a database with any PostgreSQL instance you control. The quickstart CLI
@@ -109,6 +123,14 @@ curl -s http://localhost:8080/api/v2/demo_pgsql/_table/widgets \
 ## LLM-Oriented Equivalent
 
 ```bash
+./dreamfactory ai pgsql-connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
 ./dreamfactory ai plan-service pgsql > pgsql-service.json
 ./dreamfactory ai demo-pgsql \
   --db-host localhost \
@@ -124,3 +146,28 @@ curl -s http://localhost:8080/api/v2/demo_pgsql/_table/widgets \
   --email you@company.example \
   --password YourPassword123456
 ```
+
+## MCP Path
+
+Start an MCP-enabled archive with:
+
+```bash
+./dreamfactory serve --with-mcp \
+  --admin-email you@company.example \
+  --admin-password YourPassword123456
+```
+
+Print client config:
+
+```bash
+TOKEN="$(./dreamfactory login \
+  --email you@company.example \
+  --password YourPassword123456 \
+  --token-only)"
+
+./dreamfactory mcp config --session-token "$TOKEN"
+```
+
+The MCP daemon exposes tools such as `demo_pgsql_get_tables`,
+`demo_pgsql_get_table_schema`, and `demo_pgsql_get_table_data`. Plain-language
+questions are interpreted by the LLM client, which then calls those tools.

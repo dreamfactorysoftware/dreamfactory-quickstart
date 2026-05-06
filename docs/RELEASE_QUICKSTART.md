@@ -76,7 +76,27 @@ From the unpacked directory:
 ./dreamfactory doctor
 ```
 
+Release maintainers can run the PostgreSQL/MCP gate against an MCP-enabled
+archive:
+
+```bash
+./smoke-mcp-pgsql.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
+```
+
 ## Configure Data From The CLI
+
+Connect an existing PostgreSQL database:
+
+```bash
+./dreamfactory pgsql connect \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
 
 Primary PostgreSQL demo:
 
@@ -97,6 +117,24 @@ Offline smoke-test fallback:
   --email you@company.example \
   --password YourPassword123456
 ```
+
+## MCP For Plain-Language Clients
+
+MCP-enabled archives expose DreamFactory APIs as MCP tools. The LLM client does
+the plain-language interpretation, then calls those tools.
+
+```bash
+TOKEN="$(./dreamfactory login \
+  --email you@company.example \
+  --password YourPassword123456 \
+  --token-only)"
+
+./dreamfactory mcp config --session-token "$TOKEN"
+```
+
+After a PostgreSQL service named `app_pgsql` is registered, clients should see
+tools such as `app_pgsql_get_tables`, `app_pgsql_get_table_schema`, and
+`app_pgsql_get_table_data`.
 
 Generate a service payload:
 
