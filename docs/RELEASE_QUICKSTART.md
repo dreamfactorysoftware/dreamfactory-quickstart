@@ -5,7 +5,13 @@ archive was already built and published for the user's platform.
 
 ## Linux x86_64
 
-Install the latest release:
+Run with npm:
+
+```bash
+npx @dreamfactory/quickstart serve
+```
+
+Or install the latest release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-quickstart/master/install.sh | bash
@@ -14,10 +20,11 @@ curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-q
 Start DreamFactory:
 
 ```bash
-dreamfactory serve \
-  --admin-email you@company.example \
-  --admin-password YourPassword123456
+dreamfactory serve
 ```
+
+On first run, DreamFactory prompts for the admin email and password. For
+non-interactive environments, pass `--admin-email` and `--admin-password`.
 
 Manual download is also available. Download these files into the same
 directory:

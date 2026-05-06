@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build, for example v0.1.1-mcp"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build quickstart archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.DF_BUILD_GITHUB_TOKEN || github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          INCLUDE_MCP: "true"
+        run: ./build-binary.sh
+
+      - name: Smoke test archive
+        run: ./smoke-binary.sh dist/dreamfactory-quickstart-linux-x86_64.tar.gz
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            dist/dreamfactory-quickstart-linux-x86_64.tar.gz \
+            dist/SHA256SUMS \
+            install.sh \
+            --title "DreamFactory Quickstart $TAG" \
+            --notes-file .github/release-notes.md

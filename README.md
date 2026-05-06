@@ -33,7 +33,13 @@ admin user, and begin turning databases and services into secure REST APIs.
 
 ## Download And Run
 
-Install the latest Linux x86_64 release:
+Run with npm:
+
+```bash
+npx @dreamfactory/quickstart serve
+```
+
+Or install the latest Linux x86_64 release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-quickstart/master/install.sh | bash
@@ -42,12 +48,19 @@ curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-q
 Start DreamFactory:
 
 ```bash
+dreamfactory serve
+```
+
+Open `http://localhost:8080/`. The root path redirects to the Admin UI.
+
+On first run, DreamFactory prompts for the admin email and password. For
+non-interactive environments, pass them explicitly:
+
+```bash
 dreamfactory serve --host 0.0.0.0 --port 8080 \
   --admin-email you@company.example \
   --admin-password YourPassword123456
 ```
-
-Open `http://localhost:8080/`. The root path redirects to the Admin UI.
 
 The installer downloads the release archive, verifies `SHA256SUMS`, extracts to
 `~/.local/share/dreamfactory-quickstart`, and links `dreamfactory` into

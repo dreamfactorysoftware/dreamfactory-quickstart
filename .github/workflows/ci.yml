@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check shell scripts
+        run: |
+          bash -n install.sh
+          bash -n build-binary.sh
+          bash -n smoke-binary.sh
+          bash -n smoke-mcp-pgsql.sh
+          bash -n bin/dreamfactory-ctl
+
+      - name: Check npm launcher
+        run: |
+          node --check npm/bin/dreamfactory.js
+          npm pack --dry-run
+
+      - name: Check whitespace
+        run: git diff --check

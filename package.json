@@ -1,0 +1,30 @@
+{
+  "name": "@dreamfactory/quickstart",
+  "version": "0.1.0-mcp",
+  "description": "One-command DreamFactory quickstart launcher for governed API and LLM data access.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/dreamfactorysoftware/dreamfactory-quickstart#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamfactorysoftware/dreamfactory-quickstart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dreamfactorysoftware/dreamfactory-quickstart/issues"
+  },
+  "bin": {
+    "dreamfactory": "./npm/bin/dreamfactory.js",
+    "dreamfactory-quickstart": "./npm/bin/dreamfactory.js"
+  },
+  "files": [
+    "npm/bin/dreamfactory.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node --check npm/bin/dreamfactory.js",
+    "pack:dry": "npm pack --dry-run"
+  }
+}
