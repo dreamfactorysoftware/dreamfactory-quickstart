@@ -2,13 +2,18 @@
 set -euo pipefail
 
 REPO="${DREAMFACTORY_QUICKSTART_REPO:-dreamfactorysoftware/dreamfactory-quickstart}"
-VERSION="${DREAMFACTORY_QUICKSTART_VERSION:-v0.1.0-mcp}"
+VERSION="${DREAMFACTORY_QUICKSTART_VERSION:-latest}"
 PLATFORM="${DREAMFACTORY_QUICKSTART_PLATFORM:-linux-x86_64}"
 INSTALL_PARENT="${DREAMFACTORY_QUICKSTART_HOME:-$HOME/.local/share}"
 INSTALL_DIR="$INSTALL_PARENT/dreamfactory-quickstart"
 BIN_DIR="${DREAMFACTORY_QUICKSTART_BIN_DIR:-$HOME/.local/bin}"
-BASE_URL="https://github.com/$REPO/releases/download/$VERSION"
 ARCHIVE="dreamfactory-quickstart-$PLATFORM.tar.gz"
+
+if [ "$VERSION" = "latest" ]; then
+  BASE_URL="https://github.com/$REPO/releases/latest/download"
+else
+  BASE_URL="https://github.com/$REPO/releases/download/$VERSION"
+fi
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
