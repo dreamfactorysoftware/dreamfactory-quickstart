@@ -33,17 +33,32 @@ admin user, and begin turning databases and services into secure REST APIs.
 
 ## Download And Run
 
-Download the latest Linux x86_64 release archive and checksum file:
+Install the latest Linux x86_64 release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-quickstart/master/install.sh | bash
+```
+
+Start DreamFactory:
+
+```bash
+dreamfactory serve --host 0.0.0.0 --port 8080 \
+  --admin-email you@company.example \
+  --admin-password YourPassword123456
+```
+
+Open `http://localhost:8080/`. The root path redirects to the Admin UI.
+
+The installer downloads the release archive, verifies `SHA256SUMS`, extracts to
+`~/.local/share/dreamfactory-quickstart`, and links `dreamfactory` into
+`~/.local/bin`.
+
+Manual download is also available:
 
 ```bash
 curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/dreamfactory-quickstart-linux-x86_64.tar.gz
 curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/SHA256SUMS
 sha256sum -c SHA256SUMS
-```
-
-Unpack and start DreamFactory:
-
-```bash
 tar xzf dreamfactory-quickstart-linux-x86_64.tar.gz
 cd dreamfactory-quickstart
 
@@ -51,8 +66,6 @@ cd dreamfactory-quickstart
   --admin-email you@company.example \
   --admin-password YourPassword123456
 ```
-
-Open `http://localhost:8080/`. The root path redirects to the Admin UI.
 
 The first run initializes local storage, runs migrations, creates the admin
 user, and starts the API and Admin UI.

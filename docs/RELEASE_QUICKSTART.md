@@ -5,7 +5,22 @@ archive was already built and published for the user's platform.
 
 ## Linux x86_64
 
-Download these files into the same directory:
+Install the latest release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-quickstart/master/install.sh | bash
+```
+
+Start DreamFactory:
+
+```bash
+dreamfactory serve \
+  --admin-email you@company.example \
+  --admin-password YourPassword123456
+```
+
+Manual download is also available. Download these files into the same
+directory:
 
 ```bash
 curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/dreamfactory-quickstart-linux-x86_64.tar.gz
@@ -23,10 +38,6 @@ Unpack and start DreamFactory:
 ```bash
 tar xzf dreamfactory-quickstart-linux-x86_64.tar.gz
 cd dreamfactory-quickstart
-
-./dreamfactory serve \
-  --admin-email you@company.example \
-  --admin-password YourPassword123456
 ```
 
 Open:
