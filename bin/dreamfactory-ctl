@@ -56,6 +56,7 @@ fi
 
 STORAGE="${DREAMFACTORY_STORAGE:-$HOME/.dreamfactory}"
 export LARAVEL_STORAGE_PATH="$STORAGE"
+export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
 MCP_DAEMON_DIR="$SCRIPT_DIR/mcp-daemon"
 MCP_NODE="$SCRIPT_DIR/node/bin/node"
 MCP_PID=""
@@ -203,6 +204,17 @@ needs_setup() {
   [ ! -f "$STORAGE/.initialized" ]
 }
 
+write_install_marker() {
+  require_frankenphp
+  export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
+
+  DF_INSTALL="$DF_INSTALL" $FRANKENPHP php-cli artisan tinker --execute='
+    \DreamFactory\Core\Utility\FileUtilities::updateEnvSetting([
+      "DF_INSTALL" => getenv("DF_INSTALL") ?: "Quickstart Archive"
+    ]);
+  ' >/dev/null 2>&1 || true
+}
+
 admin_email() {
   printf '%s' "${ADMIN_EMAIL:-}"
 }
@@ -304,6 +316,8 @@ CADDY
 run_setup() {
   require_frankenphp
   init_storage
+  export DF_INSTALL="${DF_INSTALL:-Quickstart Archive}"
+  write_install_marker
 
   local email="${ADMIN_EMAIL:-}"
   local password="${ADMIN_PASSWORD:-}"

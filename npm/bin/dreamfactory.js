@@ -39,7 +39,10 @@ async function main() {
 
   const child = spawn(binaryPath, args.length > 0 ? args : ["help"], {
     stdio: "inherit",
-    env: process.env
+    env: {
+      ...process.env,
+      DF_INSTALL: process.env.DF_INSTALL || "Quickstart npm"
+    }
   });
 
   child.on("exit", (code, signal) => {

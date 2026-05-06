@@ -95,6 +95,13 @@ for _ in $(seq 1 90); do
       if [ "$root_status" = "302" ] && [ "$admin_status" = "200" ] && [ "$login_status" = "200" ]; then
         echo "[5/5] Checking doctor and AI login"
         DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" doctor
+        install_type="$(DREAMFACTORY_STORAGE="$STORAGE" "$DREAMFACTORY" artisan tinker --execute='echo env("DF_INSTALL", "");' 2>/dev/null | tail -1)"
+        expected_install_type="${EXPECTED_DF_INSTALL:-Quickstart Archive}"
+        if [ "$install_type" != "$expected_install_type" ]; then
+          echo "Expected DF_INSTALL=$expected_install_type, got: ${install_type:-<empty>}" >&2
+          exit 1
+        fi
+        echo "ok   install source $install_type"
         if [ -d "$APP_DIR/mcp-daemon" ]; then
           MCP_DAEMON_PORT="${MCP_DAEMON_PORT:-18086}" "$DREAMFACTORY" mcp doctor
         fi
