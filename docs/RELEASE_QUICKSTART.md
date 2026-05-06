@@ -8,7 +8,7 @@ archive was already built and published for the user's platform.
 Run with npm:
 
 ```bash
-npx @dreamfactory/quickstart serve
+npx @dreamfactory/quickstart
 ```
 
 The npm launcher downloads the matching GitHub release on first use and caches
@@ -22,7 +22,7 @@ npx @dreamfactory/quickstart cache clean
 Or install the latest release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dreamfactorysoftware/dreamfactory-quickstart/master/install.sh | bash
+curl -fsSL https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/latest/download/install.sh | bash
 ```
 
 Start DreamFactory:
@@ -38,8 +38,8 @@ Manual download is also available. Download these files into the same
 directory:
 
 ```bash
-curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/dreamfactory-quickstart-linux-x86_64.tar.gz
-curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/download/v0.1.0-mcp/SHA256SUMS
+curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/latest/download/dreamfactory-quickstart-linux-x86_64.tar.gz
+curl -LO https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/latest/download/SHA256SUMS
 ```
 
 Verify the archive:

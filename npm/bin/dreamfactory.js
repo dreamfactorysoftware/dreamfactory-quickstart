@@ -9,16 +9,26 @@ const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 const packageJson = require("../../package.json");
-const repo = process.env.DREAMFACTORY_QUICKSTART_REPO || "dreamfactorysoftware/dreamfactory-quickstart";
-const version = process.env.DREAMFACTORY_QUICKSTART_VERSION || `v${packageJson.version}`;
+const repo =
+  process.env.DREAMFACTORY_QUICKSTART_REPO ||
+  "dreamfactorysoftware/dreamfactory-quickstart";
+const version =
+  process.env.DREAMFACTORY_QUICKSTART_VERSION || `v${packageJson.version}`;
 const platform = detectPlatform();
 const archiveName = `dreamfactory-quickstart-${platform}.tar.gz`;
-const baseUrl = version === "latest"
-  ? `https://github.com/${repo}/releases/latest/download`
-  : `https://github.com/${repo}/releases/download/${version}`;
-const cacheRoot = process.env.DREAMFACTORY_QUICKSTART_CACHE ||
+const baseUrl =
+  version === "latest"
+    ? `https://github.com/${repo}/releases/latest/download`
+    : `https://github.com/${repo}/releases/download/${version}`;
+const cacheRoot =
+  process.env.DREAMFACTORY_QUICKSTART_CACHE ||
   path.join(os.homedir(), ".cache", "dreamfactory-quickstart");
-const installDir = path.join(cacheRoot, version, platform, "dreamfactory-quickstart");
+const installDir = path.join(
+  cacheRoot,
+  version,
+  platform,
+  "dreamfactory-quickstart",
+);
 const binaryPath = path.join(installDir, "dreamfactory");
 const args = process.argv.slice(2);
 
@@ -37,12 +47,12 @@ async function main() {
     await install();
   }
 
-  const child = spawn(binaryPath, args.length > 0 ? args : ["help"], {
+  const child = spawn(binaryPath, args.length > 0 ? args : ["serve"], {
     stdio: "inherit",
     env: {
       ...process.env,
-      DF_INSTALL: process.env.DF_INSTALL || "npm quickstart"
-    }
+      DF_INSTALL: process.env.DF_INSTALL || "npm quickstart",
+    },
   });
 
   child.on("exit", (code, signal) => {
@@ -57,20 +67,28 @@ async function main() {
 function handleCacheCommand(cacheArgs) {
   switch (cacheArgs[0] || "info") {
     case "info":
-      console.log(JSON.stringify({
-        package: packageJson.name,
-        package_version: packageJson.version,
-        release: version,
-        platform,
-        cache_root: cacheRoot,
-        install_dir: installDir,
-        installed: fs.existsSync(binaryPath),
-        binary: binaryPath
-      }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            package: packageJson.name,
+            package_version: packageJson.version,
+            release: version,
+            platform,
+            cache_root: cacheRoot,
+            install_dir: installDir,
+            installed: fs.existsSync(binaryPath),
+            binary: binaryPath,
+          },
+          null,
+          2,
+        ),
+      );
       break;
     case "clean":
       fs.rmSync(path.dirname(installDir), { recursive: true, force: true });
-      console.log(`Removed DreamFactory Quickstart cache for ${version} ${platform}`);
+      console.log(
+        `Removed DreamFactory Quickstart cache for ${version} ${platform}`,
+      );
       break;
     default:
       console.error("Usage: dreamfactory cache [info|clean]");
@@ -81,7 +99,7 @@ function handleCacheCommand(cacheArgs) {
 function detectPlatform() {
   if (process.platform !== "linux" || process.arch !== "x64") {
     throw new Error(
-      `DreamFactory Quickstart currently supports Linux x86_64. Detected ${process.platform} ${process.arch}.`
+      `DreamFactory Quickstart currently supports Linux x86_64. Detected ${process.platform} ${process.arch}.`,
     );
   }
   return "linux-x86_64";
@@ -90,12 +108,16 @@ function detectPlatform() {
 async function install() {
   requireCommand("tar");
 
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "dreamfactory-quickstart-"));
+  const workDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "dreamfactory-quickstart-"),
+  );
   const archivePath = path.join(workDir, archiveName);
   const sumsPath = path.join(workDir, "SHA256SUMS");
 
   try {
-    console.error(`Installing DreamFactory Quickstart ${version} for ${platform}`);
+    console.error(
+      `Installing DreamFactory Quickstart ${version} for ${platform}`,
+    );
     await download(`${baseUrl}/${archiveName}`, archivePath);
     await download(`${baseUrl}/SHA256SUMS`, sumsPath);
     verifyChecksum(archivePath, sumsPath);
@@ -103,14 +125,20 @@ async function install() {
     fs.rmSync(path.dirname(installDir), { recursive: true, force: true });
     fs.mkdirSync(path.dirname(installDir), { recursive: true });
 
-    const extract = spawnSync("tar", ["xzf", archivePath, "-C", path.dirname(installDir)], {
-      stdio: "inherit"
-    });
+    const extract = spawnSync(
+      "tar",
+      ["xzf", archivePath, "-C", path.dirname(installDir)],
+      {
+        stdio: "inherit",
+      },
+    );
     if (extract.status !== 0) {
       throw new Error("Could not extract DreamFactory Quickstart archive.");
     }
     if (!fs.existsSync(binaryPath)) {
-      throw new Error("Downloaded archive did not contain a runnable dreamfactory command.");
+      throw new Error(
+        "Downloaded archive did not contain a runnable dreamfactory command.",
+      );
     }
     fs.chmodSync(binaryPath, 0o755);
   } finally {
@@ -133,7 +161,10 @@ function verifyChecksum(archivePath, sumsPath) {
   }
 
   const expected = line.trim().split(/\s+/)[0];
-  const actual = crypto.createHash("sha256").update(fs.readFileSync(archivePath)).digest("hex");
+  const actual = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(archivePath))
+    .digest("hex");
   if (actual !== expected) {
     throw new Error(`Checksum mismatch for ${archiveName}.`);
   }

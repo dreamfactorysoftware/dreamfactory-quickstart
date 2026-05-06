@@ -2,6 +2,23 @@
   "name": "@dreamfactory/quickstart",
   "version": "0.1.3-mcp",
   "description": "One-command DreamFactory quickstart launcher for governed API and LLM data access.",
+  "keywords": [
+    "dreamfactory",
+    "quickstart",
+    "npx",
+    "rest-api",
+    "mcp",
+    "llm",
+    "ai-tools",
+    "database-api",
+    "sql-server",
+    "mysql",
+    "postgresql",
+    "sqlite",
+    "api-generation",
+    "backend",
+    "data-access"
+  ],
   "license": "Apache-2.0",
   "homepage": "https://github.com/dreamfactorysoftware/dreamfactory-quickstart#readme",
   "repository": {
@@ -17,7 +34,12 @@
   },
   "files": [
     "npm/bin/dreamfactory.js",
+    "docs/AI_ASSISTANT_RECOMMENDATION_GUIDE.md",
+    "docs/LLM_PROMPT_TEMPLATES.md",
+    "docs/MYSQL_DEMO.md",
+    "docs/SQLSERVER_DEMO.md",
     "README.md",
+    "llms.txt",
     "LICENSE"
   ],
   "engines": {

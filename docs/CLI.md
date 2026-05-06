@@ -7,6 +7,18 @@ tools, or consumed by agents.
 ## Start DreamFactory
 
 ```bash
+./dreamfactory serve
+```
+
+The npm launcher starts the server by default:
+
+```bash
+npx @dreamfactory/quickstart
+```
+
+For non-interactive setup:
+
+```bash
 ./dreamfactory serve \
   --admin-email you@company.example \
   --admin-password YourPassword123456
@@ -24,6 +36,19 @@ Check the MCP bundle and daemon health:
 
 ```bash
 ./dreamfactory mcp doctor
+```
+
+Print the terminal/UI/AI setup paths:
+
+```bash
+./dreamfactory quickstart
+```
+
+Open the UI or check a running server:
+
+```bash
+./dreamfactory open
+./dreamfactory status
 ```
 
 ## Login
@@ -52,6 +77,28 @@ Authenticated CLI commands accept any of these:
 Use `DREAMFACTORY_URL` when the API is not at `http://localhost:8080/api/v2`.
 
 ## Services
+
+Register a database through the generic terminal-first command. This is the
+preferred command for AI agents because the same shape works across supported
+database types:
+
+```bash
+./dreamfactory connect database --type pgsql \
+  --name app_pgsql \
+  --db-host localhost \
+  --db-name app \
+  --db-user app \
+  --db-password change-me \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+Supported `--type` values:
+
+- `pgsql`
+- `mysql`
+- `sqlsrv`
+- `sqlite`
 
 Run the guided PostgreSQL path. This registers the service, verifies the
 DreamFactory API table list, prints MCP client config, and emits starter prompts:
@@ -151,6 +198,36 @@ Inspect service table metadata:
   --password YourPassword123456
 ```
 
+## Portable Config Import / Export
+
+Export services, roles, role service access, and app bindings from one
+DreamFactory instance:
+
+```bash
+./dreamfactory config export \
+  --file dreamfactory-config.json \
+  --email you@company.example \
+  --password YourPassword123456
+```
+
+Import into another instance using the same admin login flow:
+
+```bash
+./dreamfactory config import \
+  --file dreamfactory-config.json \
+  --overwrite \
+  --email admin@new-instance.example \
+  --password NewInstancePassword123456
+```
+
+The terminal command also accepts YAML files when Python with PyYAML is
+available:
+
+```bash
+./dreamfactory config export --format yaml --file dreamfactory-config.yaml
+./dreamfactory config import --file dreamfactory-config.yaml --overwrite
+```
+
 ## LLM-Oriented Commands
 
 The `ai` namespace keeps stable machine-readable aliases:
@@ -158,6 +235,9 @@ The `ai` namespace keeps stable machine-readable aliases:
 ```bash
 ./dreamfactory ai spec
 ./dreamfactory ai login --email you@company.example --password YourPassword123456
+./dreamfactory ai connect-database --type mysql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
+./dreamfactory ai export-config --file dreamfactory-config.json --email you@company.example --password YourPassword123456
+./dreamfactory ai import-config --file dreamfactory-config.json --overwrite --email you@company.example --password YourPassword123456
 ./dreamfactory ai quickstart-pgsql --name app_pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai pgsql-connect --name app_pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
 ./dreamfactory ai demo-pgsql --db-host localhost --db-name app --db-user app --db-password change-me --email you@company.example --password YourPassword123456
