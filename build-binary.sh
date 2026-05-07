@@ -22,6 +22,7 @@ ODBC_SRC="/go/src/app/dist/odbc-runtime"
 MCP_DAEMON_SRC="/go/src/app/dist/mcp-daemon"
 NODE_RUNTIME_SRC="/go/src/app/dist/node-runtime"
 BINARY_DST="$DIST_DIR/dreamfactory-linux-x86_64"
+LOCAL_PACKAGES_DIR="$SCRIPT_DIR/.build/local-packages"
 
 BRANCH="${BRANCH:-master}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
@@ -30,6 +31,9 @@ PLATFORM="${PLATFORM:-linux-x86_64}"
 SKIP_DOCKER_BUILD="${SKIP_DOCKER_BUILD:-false}"
 INCLUDE_MCP="${INCLUDE_MCP:-false}"
 MCP_PACKAGE_DIR="${MCP_PACKAGE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-mcp-server}"
+INCLUDE_LOCAL_PACKAGES="${INCLUDE_LOCAL_PACKAGES:-true}"
+LOCAL_DF_SYSTEM_DIR="${LOCAL_DF_SYSTEM_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-system}"
+LOCAL_DF_ADMIN_INTERFACE_DIR="${LOCAL_DF_ADMIN_INTERFACE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-admin-interface}"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 
@@ -39,6 +43,7 @@ echo "  Branch: $BRANCH"
 echo "  Version: $VERSION"
 echo "  Platform: $PLATFORM"
 echo "  Include MCP: $INCLUDE_MCP"
+echo "  Include local packages: $INCLUDE_LOCAL_PACKAGES"
 echo "  Skip Docker build: $SKIP_DOCKER_BUILD"
 echo "============================================"
 echo ""
@@ -46,6 +51,35 @@ echo ""
 mkdir -p "$DIST_DIR"
 rm -rf "$SCRIPT_DIR/.build/df-mcp-server"
 mkdir -p "$SCRIPT_DIR/.build/df-mcp-server"
+rm -rf "$LOCAL_PACKAGES_DIR"
+mkdir -p "$LOCAL_PACKAGES_DIR"
+
+copy_local_package() {
+  local source_dir="$1"
+  local target_name="$2"
+
+  if [ ! -f "$source_dir/composer.json" ]; then
+    return 0
+  fi
+
+  echo "Preparing local package $target_name from $source_dir"
+  mkdir -p "$LOCAL_PACKAGES_DIR/$target_name"
+  tar \
+    --exclude='.git' \
+    --exclude='.angular' \
+    --exclude='.cache' \
+    --exclude='coverage' \
+    --exclude='node_modules' \
+    --exclude='test-results' \
+    --exclude='vendor' \
+    -C "$source_dir" \
+    -cf - . | tar -C "$LOCAL_PACKAGES_DIR/$target_name" -xf -
+}
+
+if [ "$INCLUDE_LOCAL_PACKAGES" = "true" ]; then
+  copy_local_package "$LOCAL_DF_SYSTEM_DIR" "df-system"
+  copy_local_package "$LOCAL_DF_ADMIN_INTERFACE_DIR" "df-admin-interface"
+fi
 
 if [ "$INCLUDE_MCP" = "true" ]; then
   if [ ! -f "$MCP_PACKAGE_DIR/composer.json" ] || [ ! -f "$MCP_PACKAGE_DIR/daemon/package.json" ]; then

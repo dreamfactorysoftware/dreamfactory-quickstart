@@ -31,11 +31,14 @@ WORKDIR /build/app
 # Overlay composer.json for the quickstart binary profile.
 COPY composer.binary.json composer.json
 COPY .build/df-mcp-server /build/df-mcp-server
+COPY .build/local-packages /build/local-packages
 
 RUN if [ "$INCLUDE_MCP" = "true" ]; then \
       test -f /build/df-mcp-server/composer.json; \
       php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $json["repositories"][]=["type"=>"path","url"=>"/build/df-mcp-server","options"=>["symlink"=>false]]; $json["require"]["dreamfactory/df-mcp-server"]="*"; file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'; \
     fi
+
+RUN php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $versions=["dreamfactory/df-system"=>"0.6.4", "dreamfactory/df-admin-interface"=>"1.7.4"]; foreach (["df-system", "df-admin-interface"] as $package) { $path="/build/local-packages/".$package; if (is_file($path."/composer.json")) { $packageJson=json_decode(file_get_contents($path."/composer.json"), true); $name=$packageJson["name"]; array_unshift($json["repositories"], ["type"=>"path", "url"=>$path, "options"=>["symlink"=>false, "versions"=>[$name=>$versions[$name] ?? "999.999.999"]]]); $json["require"][$name]="*"; } } file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'
 
 # Pre-composer cleanup
 RUN rm -f composer.lock bootstrap/cache/packages.php bootstrap/cache/services.php && \
@@ -171,6 +174,7 @@ RUN --mount=type=secret,id=github_token \
     export PHP_EXTENSIONS="bcmath,ctype,curl,dom,fileinfo,filter,mbstring,mbregex,opcache,openssl,pdo_mysql,pdo_pgsql,pdo_sqlite,pdo_sqlsrv,phar,session,simplexml,soap,sqlsrv,tokenizer,xml,xmlreader,xmlwriter" \
     PHP_EXTENSION_LIBS="libavif,nghttp2,nghttp3,ngtcp2,watcher,libssh2,zstd,onig" \
     EMBED=dist/app/; \
+    rm -f /go/src/app/dist/static-php-cli/buildroot/bin/frankenphp; \
     if [ -s /run/secrets/github_token ]; then \
         export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
     fi; \

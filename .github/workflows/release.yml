@@ -42,12 +42,28 @@ jobs:
           repository: dreamfactorysoftware/df-mcp-server
           path: .build/df-mcp-server-source
 
+      - name: Check out quickstart system package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-system
+          ref: feature/quickstart-install-type
+          path: .build/df-system-source
+
+      - name: Check out quickstart Admin UI package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-admin-interface
+          ref: feature/quickstart-binary-onboarding
+          path: .build/df-admin-interface-source
+
       - name: Build quickstart archive
         env:
           GITHUB_TOKEN: ${{ secrets.DF_BUILD_GITHUB_TOKEN || github.token }}
           VERSION: ${{ steps.release.outputs.version }}
           INCLUDE_MCP: "true"
           MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-mcp-server-source
+          LOCAL_DF_SYSTEM_DIR: ${{ github.workspace }}/.build/df-system-source
+          LOCAL_DF_ADMIN_INTERFACE_DIR: ${{ github.workspace }}/.build/df-admin-interface-source
         run: ./build-binary.sh
 
       - name: Smoke test archive
