@@ -47,15 +47,16 @@ RUN rm -f composer.lock bootstrap/cache/packages.php bootstrap/cache/services.ph
     git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 RUN --mount=type=secret,id=github_token \
+    set -eu; \
+    cleanup_auth() { composer config --global --unset github-oauth.github.com >/dev/null 2>&1 || true; }; \
+    trap cleanup_auth EXIT; \
     if [ -s /run/secrets/github_token ]; then \
         composer config --global --auth github-oauth.github.com "$(cat /run/secrets/github_token)"; \
-    fi
-
-RUN COMPOSER_MEMORY_LIMIT=-1 composer update --no-dev --ignore-platform-reqs --no-scripts
+    fi; \
+    COMPOSER_MEMORY_LIMIT=-1 composer update --no-dev --ignore-platform-reqs --no-scripts
 
 # Patch MongoDB references out of df-core
-RUN sed -i '/use MongoDB/d' vendor/dreamfactory/df-core/src/LaravelServiceProvider.php && \
-    sed -i '/MongoDBServiceProvider/d' vendor/dreamfactory/df-core/src/LaravelServiceProvider.php
+RUN perl -0pi -e 's/^use MongoDB\\Laravel\\MongoDBServiceProvider;\n//m; s/\n\s*\/\/ Register MongoDB provider first[^\n]*\n\s*if \(class_exists\(MongoDBServiceProvider::class\)\) \{\n\s*\$this->app->register\(MongoDBServiceProvider::class\);\n\s*\}\n/\n/s' vendor/dreamfactory/df-core/src/LaravelServiceProvider.php
 
 # Post-install steps
 RUN composer dump-autoload --optimize && \

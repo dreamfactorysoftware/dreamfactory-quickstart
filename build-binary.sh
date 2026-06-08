@@ -29,6 +29,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 VERSION="${VERSION:-0.1.0-dev}"
 PLATFORM="${PLATFORM:-linux-x86_64}"
 SKIP_DOCKER_BUILD="${SKIP_DOCKER_BUILD:-false}"
+NO_CACHE_FILTER="${NO_CACHE_FILTER:-}"
 INCLUDE_MCP="${INCLUDE_MCP:-false}"
 MCP_PACKAGE_DIR="${MCP_PACKAGE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-mcp-server}"
 INCLUDE_LOCAL_PACKAGES="${INCLUDE_LOCAL_PACKAGES:-true}"
@@ -45,6 +46,7 @@ echo "  Platform: $PLATFORM"
 echo "  Include MCP: $INCLUDE_MCP"
 echo "  Include local packages: $INCLUDE_LOCAL_PACKAGES"
 echo "  Skip Docker build: $SKIP_DOCKER_BUILD"
+echo "  No-cache filter: ${NO_CACHE_FILTER:-none}"
 echo "============================================"
 echo ""
 
@@ -102,6 +104,10 @@ SECRET_ARGS=()
 if [ -n "$GITHUB_TOKEN" ]; then
   SECRET_ARGS=(--secret id=github_token,env=GITHUB_TOKEN)
 fi
+CACHE_ARGS=()
+if [ -n "$NO_CACHE_FILTER" ]; then
+  CACHE_ARGS=(--no-cache-filter "$NO_CACHE_FILTER")
+fi
 
 if [ "$SKIP_DOCKER_BUILD" = "true" ]; then
   echo "[1/3] Reusing existing static binary..."
@@ -123,6 +129,7 @@ else
   echo "[1/3] Building static binary (this takes a while)..."
   docker build \
     $BUILD_ARGS \
+    "${CACHE_ARGS[@]}" \
     "${SECRET_ARGS[@]}" \
     -t "$IMAGE_NAME" \
     -f static-build.Dockerfile \

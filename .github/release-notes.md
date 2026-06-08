@@ -1,13 +1,22 @@
-Initial DreamFactory Quickstart release.
+DreamFactory Quickstart for DreamFactory 7.6.
 
-Includes the Linux x86_64 self-contained archive, bundled DreamFactory runtime,
-Admin UI, database connectors, CLI helpers, and MCP-enabled tooling for governed
-LLM data access.
+A single self-contained Linux x86_64 archive: bundled DreamFactory 7.6 runtime,
+Admin UI, database connectors (MySQL, PostgreSQL, SQL Server, SQLite), CLI
+helpers, and the built-in MCP server for governed LLM data access. No PHP,
+web server, or database setup required.
+
+Run it on Windows 11 via WSL2 (it is a native Linux binary).
 
 One-line install:
 
 ```bash
 curl -fsSL https://github.com/dreamfactorysoftware/dreamfactory-quickstart/releases/latest/download/install.sh | bash
+```
+
+Or run with npx (no install):
+
+```bash
+npx @dreamfactory/quickstart
 ```
 
 Start DreamFactory:
