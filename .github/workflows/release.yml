@@ -56,6 +56,20 @@ jobs:
           ref: feature/quickstart-binary-onboarding
           path: .build/df-admin-interface-source
 
+      - name: Check out df-ai package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-ai
+          ref: develop
+          path: .build/df-ai-source
+
+      - name: Check out df-ai-chat package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-ai-chat
+          ref: develop
+          path: .build/df-ai-chat-source
+
       - name: Build quickstart archive
         env:
           GITHUB_TOKEN: ${{ secrets.DF_BUILD_GITHUB_TOKEN || github.token }}
@@ -64,6 +78,8 @@ jobs:
           MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-mcp-server-source
           LOCAL_DF_SYSTEM_DIR: ${{ github.workspace }}/.build/df-system-source
           LOCAL_DF_ADMIN_INTERFACE_DIR: ${{ github.workspace }}/.build/df-admin-interface-source
+          LOCAL_DF_AI_DIR: ${{ github.workspace }}/.build/df-ai-source
+          LOCAL_DF_AI_CHAT_DIR: ${{ github.workspace }}/.build/df-ai-chat-source
         run: ./build-binary.sh
 
       - name: Smoke test archive

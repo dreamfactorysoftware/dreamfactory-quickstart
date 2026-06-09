@@ -35,6 +35,8 @@ MCP_PACKAGE_DIR="${MCP_PACKAGE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory
 INCLUDE_LOCAL_PACKAGES="${INCLUDE_LOCAL_PACKAGES:-true}"
 LOCAL_DF_SYSTEM_DIR="${LOCAL_DF_SYSTEM_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-system}"
 LOCAL_DF_ADMIN_INTERFACE_DIR="${LOCAL_DF_ADMIN_INTERFACE_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-admin-interface}"
+LOCAL_DF_AI_DIR="${LOCAL_DF_AI_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-ai}"
+LOCAL_DF_AI_CHAT_DIR="${LOCAL_DF_AI_CHAT_DIR:-$SCRIPT_DIR/../dreamfactory-dev/dreamfactory-development-packages/df-ai-chat}"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 
@@ -81,6 +83,8 @@ copy_local_package() {
 if [ "$INCLUDE_LOCAL_PACKAGES" = "true" ]; then
   copy_local_package "$LOCAL_DF_SYSTEM_DIR" "df-system"
   copy_local_package "$LOCAL_DF_ADMIN_INTERFACE_DIR" "df-admin-interface"
+  copy_local_package "$LOCAL_DF_AI_DIR" "df-ai"
+  copy_local_package "$LOCAL_DF_AI_CHAT_DIR" "df-ai-chat"
 fi
 
 if [ "$INCLUDE_MCP" = "true" ]; then
