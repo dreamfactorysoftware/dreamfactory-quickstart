@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-ARG BRANCH=master
+ARG BRANCH=7.7.0
 ARG INCLUDE_MCP=false
 RUN git clone --depth 1 --branch $BRANCH \
     https://github.com/dreamfactorysoftware/dreamfactory.git /build/app && \
@@ -38,7 +38,7 @@ RUN if [ "$INCLUDE_MCP" = "true" ]; then \
       php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $json["repositories"][]=["type"=>"path","url"=>"/build/df-mcp-server","options"=>["symlink"=>false]]; $json["require"]["dreamfactory/df-mcp-server"]="*"; file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'; \
     fi
 
-RUN php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $versions=["dreamfactory/df-system"=>"0.6.4", "dreamfactory/df-admin-interface"=>"1.7.4", "dreamfactory/df-ai"=>"1.0.0", "dreamfactory/df-ai-chat"=>"1.0.0"]; foreach (["df-system", "df-admin-interface", "df-ai", "df-ai-chat"] as $package) { $path="/build/local-packages/".$package; if (is_file($path."/composer.json")) { $packageJson=json_decode(file_get_contents($path."/composer.json"), true); $name=$packageJson["name"]; array_unshift($json["repositories"], ["type"=>"path", "url"=>$path, "options"=>["symlink"=>false, "versions"=>[$name=>$versions[$name] ?? "999.999.999"]]]); $json["require"][$name]="*"; } } file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'
+RUN php -r '$file="composer.json"; $json=json_decode(file_get_contents($file), true); $versions=["dreamfactory/df-system"=>"0.6.5", "dreamfactory/df-admin-interface"=>"1.7.7", "dreamfactory/df-ai"=>"0.1.0", "dreamfactory/df-ai-chat"=>"0.1.0"]; foreach (["df-system", "df-admin-interface", "df-ai", "df-ai-chat"] as $package) { $path="/build/local-packages/".$package; if (is_file($path."/composer.json")) { $packageJson=json_decode(file_get_contents($path."/composer.json"), true); $name=$packageJson["name"]; array_unshift($json["repositories"], ["type"=>"path", "url"=>$path, "options"=>["symlink"=>false, "versions"=>[$name=>$versions[$name] ?? "999.999.999"]]]); $json["require"][$name]="*"; } } file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL);'
 
 # Pre-composer cleanup
 RUN rm -f composer.lock bootstrap/cache/packages.php bootstrap/cache/services.php && \
@@ -62,23 +62,35 @@ RUN perl -0pi -e 's/^use MongoDB\\Laravel\\MongoDBServiceProvider;\n//m; s/\n\s*
 RUN composer dump-autoload --optimize && \
     php artisan package:discover --ansi
 
+# Quickstart binaries report a commercial connector tier without a license key.
+# 1.7.7's license guard treats license_key:false as "defined" and can redirect
+# the Admin UI to the expired-subscription page. Skip that check in the bundled
+# dist; the OPEN SOURCE engagement banner is left intact.
+COPY scripts/skip-quickstart-license-check.php /tmp/skip-quickstart-license-check.php
+RUN php /tmp/skip-quickstart-license-check.php /build/app
+
 RUN mkdir -p /build/mcp-daemon && \
     if [ "$INCLUDE_MCP" = "true" ]; then \
       cd /build/df-mcp-server/daemon; \
-      npm ci; \
-      npm run build; \
-      npm prune --omit=dev; \
-      cp package.json package-lock.json /build/mcp-daemon/; \
+      if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
+      npm run build && \
+      npm prune --omit=dev && \
+      cp package.json /build/mcp-daemon/ && \
+      if [ -f package-lock.json ]; then cp package-lock.json /build/mcp-daemon/; fi && \
       cp -a dist node_modules /build/mcp-daemon/; \
     fi
 
-# Production .env
+# Production .env. 7.7.0 .env-dist comments most keys; Laravel 13 defaults
+# CACHE_STORE to database, which needs a cache table that does not exist yet.
 RUN cp .env-dist .env && \
     sed -i 's/^APP_ENV=.*/APP_ENV=production/' .env && \
-    sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env && \
-    sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env && \
-    sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env && \
-    sed -i 's/^DF_INSTALL=.*/DF_INSTALL="binary quickstart"/' .env
+    sed -i 's/^#*APP_DEBUG=.*/APP_DEBUG=false/' .env && \
+    sed -i 's/^#*DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env && \
+    sed -i 's/^#*CACHE_STORE=.*/CACHE_STORE=file/' .env && \
+    sed -i 's/^#*CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env && \
+    sed -i 's/^DF_INSTALL=.*/DF_INSTALL="binary quickstart"/' .env && \
+    grep -q '^CACHE_STORE=' .env || echo 'CACHE_STORE=file' >> .env && \
+    grep -q '^DB_CONNECTION=' .env || echo 'DB_CONNECTION=sqlite' >> .env
 
 # Create storage skeleton (will be copied to persistent path at runtime)
 RUN mkdir -p storage/app storage/databases \

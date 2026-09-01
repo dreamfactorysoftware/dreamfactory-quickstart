@@ -102,6 +102,22 @@ for _ in $(seq 1 90); do
           exit 1
         fi
         echo "ok   install source $install_type"
+        main_js="$(curl -fsS "http://127.0.0.1:$PORT/dreamfactory/dist/index.html" \
+          | grep -oE 'main\.[^"]+\.js' | head -1 || true)"
+        if [ -z "$main_js" ]; then
+          echo "Could not find admin UI main.*.js" >&2
+          exit 1
+        fi
+        js="$(curl -fsS "http://127.0.0.1:$PORT/dreamfactory/dist/$main_js")"
+        echo "$js" | grep -q '=>!0?(0,' || {
+          echo "Admin UI license guard was not patched" >&2
+          exit 1
+        }
+        echo "$js" | grep -q 'showBanner="OPEN SOURCE"===' || {
+          echo "OPEN SOURCE engagement banner predicate missing" >&2
+          exit 1
+        }
+        echo "ok   admin UI license guard patched"
         if [ -d "$APP_DIR/mcp-daemon" ]; then
           MCP_DAEMON_PORT="${MCP_DAEMON_PORT:-18086}" "$DREAMFACTORY" mcp doctor
         fi
