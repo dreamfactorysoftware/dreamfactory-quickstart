@@ -19,25 +19,77 @@
     {
       "type": "vcs",
       "url": "https://github.com/dreamfactorysoftware/df-admin-interface.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-sqldb.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-system.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-user.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-core.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-ai.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-ai-chat.git"
     }
   ],
   "require": {
     "php": "^8.3",
-    "laravel/framework": "^11.15",
-    "laravel/helpers": "^1.7",
-    "laravel/tinker": "^2.9",
-    "dreamfactory/df-core": "~1.0.15",
-    "dreamfactory/df-system": "~0.6.4",
-    "dreamfactory/df-user": "~0.17.1",
-    "dreamfactory/df-cache": "~0.13.0",
+    "laravel/framework": "^13.7",
+    "laravel/helpers": "^1.8",
+    "laravel/tinker": "^3.0",
+    "symfony/css-selector": "^7.4",
+    "dreamfactory/df-core": "~1.0.17",
+    "dreamfactory/df-system": "~0.6.5",
+    "dreamfactory/df-user": "~0.17.2",
+    "dreamfactory/df-cache": "~0.13.1",
     "dreamfactory/df-apidoc": "~0.8.3",
-    "dreamfactory/df-file": "~0.9.0",
-    "dreamfactory/df-sqldb": "~1.4.2",
+    "dreamfactory/df-file": "~0.9.1",
+    "dreamfactory/df-sqldb": "~1.5.0",
     "dreamfactory/df-mysqldb": "~0.4.0",
-    "dreamfactory/df-sqlsrv": "~0.18.3",
+    "dreamfactory/df-sqlsrv": "~0.18.5",
     "dreamfactory/df-rws": "~0.18.2",
-    "dreamfactory/df-soap": "~0.17.2",
-    "dreamfactory/df-admin-interface": "~1.7.4"
+    "dreamfactory/df-soap": "~0.17.3",
+    "dreamfactory/df-admin-interface": "~1.7.7",
+    "dreamfactory/df-ai": "~0.1.0",
+    "dreamfactory/df-ai-chat": "~0.1.0"
+  },
+  "conflict": {
+    "symfony/cache": ">=8.0",
+    "symfony/clock": ">=8.0",
+    "symfony/console": ">=8.0",
+    "symfony/css-selector": ">=8.0",
+    "symfony/error-handler": ">=8.0",
+    "symfony/event-dispatcher": ">=8.0",
+    "symfony/filesystem": ">=8.0",
+    "symfony/finder": ">=8.0",
+    "symfony/http-client": ">=8.0",
+    "symfony/http-foundation": ">=8.0",
+    "symfony/http-kernel": ">=8.0",
+    "symfony/mailer": ">=8.0",
+    "symfony/mailgun-mailer": ">=8.0",
+    "symfony/mime": ">=8.0",
+    "symfony/options-resolver": ">=8.0",
+    "symfony/process": ">=8.0",
+    "symfony/routing": ">=8.0",
+    "symfony/string": ">=8.0",
+    "symfony/translation": ">=8.0",
+    "symfony/uid": ">=8.0",
+    "symfony/var-dumper": ">=8.0",
+    "symfony/var-exporter": ">=8.0",
+    "symfony/yaml": ">=8.0"
   },
   "autoload": {
     "classmap": [

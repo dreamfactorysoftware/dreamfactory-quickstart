@@ -1,9 +1,10 @@
-DreamFactory Quickstart for DreamFactory 7.6.
+DreamFactory Quickstart for DreamFactory 7.7.0.
 
-A single self-contained Linux x86_64 archive: bundled DreamFactory 7.6 runtime,
-Admin UI, database connectors (MySQL, PostgreSQL, SQL Server, SQLite), CLI
-helpers, and the built-in MCP server for governed LLM data access. No PHP,
-web server, or database setup required.
+A single self-contained Linux x86_64 archive: bundled DreamFactory 7.7.0
+runtime (Laravel 13), Admin UI, database connectors (MySQL, PostgreSQL, SQL
+Server, SQLite), CLI helpers, AI connection/chat service types, and the
+built-in MCP server for governed LLM data access. No PHP, web server, or
+database setup required.
 
 Run it on Windows 11 via WSL2 (it is a native Linux binary).
 

@@ -63,6 +63,10 @@ fi
 STORAGE="${DREAMFACTORY_STORAGE:-$HOME/.dreamfactory}"
 export LARAVEL_STORAGE_PATH="$STORAGE"
 export DF_INSTALL="${DF_INSTALL:-binary quickstart}"
+# Laravel 13 defaults CACHE_STORE to database. The quickstart sqlite file has
+# no cache table on first run, so pin file cache unless the user overrides it.
+export CACHE_STORE="${CACHE_STORE:-file}"
+export DB_CONNECTION="${DB_CONNECTION:-sqlite}"
 MCP_DAEMON_DIR="$SCRIPT_DIR/mcp-daemon"
 MCP_NODE="$SCRIPT_DIR/node/bin/node"
 MCP_PID=""
