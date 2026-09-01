@@ -26,9 +26,6 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Update npm
-        run: npm install -g npm@latest
-
       - name: Validate package
         run: |
           node --check npm/bin/dreamfactory.js
