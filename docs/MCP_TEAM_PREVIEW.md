@@ -47,9 +47,19 @@ database service. "Require role access" is on by default for new servers.
 
 ## 5. Point an agent at it
 
-Connect tab shows ready-made config for Claude Desktop, Claude Code, Cursor and a
-generic client. OAuth login is the default; turn on "Allow API key auth" on the MCP
-service to use an app API key instead (header `X-DreamFactory-API-Key`).
+On a laptop the instance is http://localhost:8080, which matters for the client:
+
+- Claude Code, Cursor, and most CLI/IDE clients talk to a local HTTP MCP server
+  directly. Turn on "Allow API key auth" on the MCP service, create an app with
+  a role that can reach the MCP service and the database, and use its key as the
+  `X-DreamFactory-API-Key` header. The Connect tab has the config snippets.
+- Claude Desktop custom connectors need a public HTTPS URL (claude.ai brokers
+  the OAuth), so they cannot reach localhost. Use a local stdio bridge instead:
+  add to `claude_desktop_config.json`
+  `"command": "npx", "args": ["mcp-remote", "http://localhost:8080/mcp/<service>", "--header", "X-DreamFactory-API-Key: <app key>"]`.
+  Node 18+ on Windows is enough; the server itself stays in WSL.
+- OAuth login works once the instance has a public HTTPS address
+  (`dreamfactory serve --public-url https://...`).
 
 Quick check from a shell:
 
@@ -65,7 +75,8 @@ curl -s -X POST http://localhost:8080/mcp/<service> \
 - `system_mcp` service type: an MCP server over the DreamFactory admin API itself
   (bundled daemon on port 3700). Admin-level; needs a session or OAuth login.
 - API Builder and Agents service types.
-- `dreamfactory mcp doctor` checks both daemons. `dreamfactory --help` lists the rest.
+- `dreamfactory mcp doctor` checks both daemons. `dreamfactory help` lists the rest.
+- Unattended start: `dreamfactory serve --with-mcp --non-interactive --admin-email you@example.com --admin-password <16+ chars>` (or ADMIN_EMAIL / ADMIN_PASSWORD env).
 
 ## Known limits of this preview
 
