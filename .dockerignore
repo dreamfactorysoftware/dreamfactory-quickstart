@@ -13,3 +13,5 @@ npm-debug.log*
 !.build/df-mcp-server/**
 !.build/local-packages/
 !.build/local-packages/**
+!.build/df-system-mcp-server/
+!.build/df-system-mcp-server/**

@@ -31,6 +31,7 @@ WORKDIR /build/app
 # Overlay composer.json for the quickstart binary profile.
 COPY composer.binary.json composer.json
 COPY .build/df-mcp-server /build/df-mcp-server
+COPY .build/df-system-mcp-server /build/df-system-mcp-server
 COPY .build/local-packages /build/local-packages
 
 RUN if [ "$INCLUDE_MCP" = "true" ]; then \
@@ -78,6 +79,17 @@ RUN mkdir -p /build/mcp-daemon && \
       cp package.json /build/mcp-daemon/ && \
       if [ -f package-lock.json ]; then cp package-lock.json /build/mcp-daemon/; fi && \
       cp -a dist node_modules /build/mcp-daemon/; \
+    fi
+
+# System API MCP daemon (df-system-mcp-server) for the system_mcp service type
+RUN mkdir -p /build/system-mcp-daemon && \
+    if [ "$INCLUDE_MCP" = "true" ] && [ -f /build/df-system-mcp-server/package.json ]; then \
+      cd /build/df-system-mcp-server; \
+      npm ci; \
+      npm run build; \
+      npm prune --omit=dev; \
+      cp package.json package-lock.json /build/system-mcp-daemon/; \
+      cp -a build node_modules /build/system-mcp-daemon/; \
     fi
 
 # Production .env. 7.7.0 .env-dist comments most keys; Laravel 13 defaults
@@ -202,3 +214,4 @@ RUN test -f /go/src/app/dist/static-php-cli/buildroot/bin/frankenphp \
 COPY --from=odbc-runtime /odbc-runtime /go/src/app/dist/odbc-runtime
 COPY --from=node-runtime /node-runtime /go/src/app/dist/node-runtime
 COPY --from=app-builder /build/mcp-daemon /go/src/app/dist/mcp-daemon
+COPY --from=app-builder /build/system-mcp-daemon /go/src/app/dist/system-mcp-daemon

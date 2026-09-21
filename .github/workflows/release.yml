@@ -18,6 +18,8 @@ jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-latest
+    # Preview tags are built locally and uploaded by hand (they carry unpushed package refs).
+    if: ${{ !endsWith(github.ref_name, '-preview') }}
     timeout-minutes: 120
 
     steps:
@@ -40,7 +42,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: dreamfactorysoftware/df-mcp-server
-          ref: 1.3.0
+          ref: 92dfef8  # feat/mcp-exposure
           path: .build/df-mcp-server-source
 
       - name: Check out quickstart system package
@@ -54,8 +56,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: dreamfactorysoftware/df-admin-interface
-          ref: 1.7.7
+          ref: ded246c5  # feat/mcp-exposure
           path: .build/df-admin-interface-source
+
+      - name: Check out system MCP daemon package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-system-mcp-server
+          ref: 815f49b
+          path: .build/df-system-mcp-server-source
 
       - name: Check out df-ai package
         uses: actions/checkout@v4
@@ -75,6 +84,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.DF_BUILD_GITHUB_TOKEN || github.token }}
           BRANCH: "7.7.0"
+          SYSTEM_MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-system-mcp-server-source
           VERSION: ${{ steps.release.outputs.version }}
           INCLUDE_MCP: "true"
           MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-mcp-server-source

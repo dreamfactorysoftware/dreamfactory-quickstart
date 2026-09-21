@@ -68,6 +68,8 @@ export DF_INSTALL="${DF_INSTALL:-binary quickstart}"
 export CACHE_STORE="${CACHE_STORE:-file}"
 export DB_CONNECTION="${DB_CONNECTION:-sqlite}"
 MCP_DAEMON_DIR="$SCRIPT_DIR/mcp-daemon"
+SYSTEM_MCP_DAEMON_DIR="$SCRIPT_DIR/system-mcp-daemon"
+SYSTEM_MCP_PID=""
 MCP_NODE="$SCRIPT_DIR/node/bin/node"
 MCP_PID=""
 
@@ -156,7 +158,8 @@ start_mcp_daemon() {
 
   local host="${MCP_DAEMON_HOST:-127.0.0.1}"
   local port="${MCP_DAEMON_PORT:-8006}"
-  local base_url="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}/api/v2}"
+  # Origin only: DreamFactory appends /api/v2 when it hands the daemon X-Mcp-Base-Url.
+  local base_url="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}}"
   local log="$STORAGE/logs/mcp-daemon.log"
   local node_bin
   node_bin="$(mcp_node)"
@@ -188,6 +191,51 @@ start_mcp_daemon() {
     done
     echo "Timed out waiting for MCP daemon at $(mcp_url). Last log lines:" >&2
     tail -40 "$log" >&2 || true
+    return 1
+  fi
+}
+
+system_mcp_url() {
+  printf '%s' "${MCP_SYSTEM_DAEMON_URL:-http://127.0.0.1:${MCP_SYSTEM_DAEMON_PORT:-3700}}"
+}
+
+stop_system_mcp_daemon() {
+  if [ -n "$SYSTEM_MCP_PID" ] && kill -0 "$SYSTEM_MCP_PID" 2>/dev/null; then
+    kill "$SYSTEM_MCP_PID" 2>/dev/null || true
+    wait "$SYSTEM_MCP_PID" 2>/dev/null || true
+  fi
+}
+
+# System API MCP daemon (df-system-mcp-server) backing the system_mcp service
+# type. Optional: skipped when the bundle does not carry it.
+start_system_mcp_daemon() {
+  if [ ! -f "$SYSTEM_MCP_DAEMON_DIR/build/index.js" ]; then
+    export MCP_SYSTEM_DAEMON_ENABLED=false
+    return 0
+  fi
+  local port="${MCP_SYSTEM_DAEMON_PORT:-3700}"
+  local log="$STORAGE/logs/system-mcp-daemon.log"
+  export MCP_SYSTEM_DAEMON_ENABLED="${MCP_SYSTEM_DAEMON_ENABLED:-true}"
+  export MCP_SYSTEM_DAEMON_URL="${MCP_SYSTEM_DAEMON_URL:-http://127.0.0.1:$port}"
+  mkdir -p "$STORAGE/logs"
+  (
+    cd "$SYSTEM_MCP_DAEMON_DIR"
+    export NODE_ENV=production MCP_SYSTEM_DAEMON_HOST=127.0.0.1 MCP_SYSTEM_DAEMON_PORT="$port"
+    export DREAMFACTORY_URL="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}}/api/v2"
+    exec "$(mcp_node)" build/index.js
+  ) >>"$log" 2>&1 &
+  SYSTEM_MCP_PID="$!"
+  if command -v curl >/dev/null 2>&1; then
+    for _ in $(seq 1 30); do
+      if ! kill -0 "$SYSTEM_MCP_PID" 2>/dev/null; then
+        echo "System MCP daemon exited early. Last log lines:" >&2
+        tail -40 "$log" >&2 || true
+        return 1
+      fi
+      curl -fsS "$(system_mcp_url)/health" >/dev/null 2>&1 && return 0
+      sleep 1
+    done
+    echo "Timed out waiting for system MCP daemon at $(system_mcp_url)." >&2
     return 1
   fi
 }
@@ -461,6 +509,10 @@ cmd_serve() {
 
   init_storage
   export SERVER_PORT="$port"
+  # OAuth redirects (MCP clients) go to APP_URL; make it the address people use.
+  export APP_URL="${APP_URL:-$(public_base_url)}"
+  # Let the embedded app find the bundled node (MCP health check looks on PATH).
+  [ ! -x "$MCP_NODE" ] || export PATH="$SCRIPT_DIR/node/bin:$PATH"
 
   if needs_setup; then
     run_setup "${setup_args[@]}"
@@ -468,6 +520,7 @@ cmd_serve() {
 
   if [ "$with_mcp" = "true" ]; then
     start_mcp_daemon
+    start_system_mcp_daemon
   fi
 
   echo ""
@@ -477,6 +530,7 @@ cmd_serve() {
   echo "  API:      $(public_base_url)/api/v2"
   if [ "$with_mcp" = "true" ]; then
     echo "  MCP:      $(mcp_url)"
+    [ "${MCP_SYSTEM_DAEMON_ENABLED:-}" != "true" ] || echo "  SysMCP:   $(system_mcp_url)"
   fi
   echo "  Listen:   http://$host:$port"
   echo "  Storage:  $STORAGE"
@@ -493,6 +547,7 @@ cmd_serve() {
     local franken_pid=""
     cleanup_serve() {
       stop_mcp_daemon
+      stop_system_mcp_daemon
       if [ -n "$franken_pid" ] && kill -0 "$franken_pid" 2>/dev/null; then
         kill "$franken_pid" 2>/dev/null || true
         wait "$franken_pid" 2>/dev/null || true
@@ -578,7 +633,7 @@ cmd_mcp() {
       export MCP_DAEMON_HOST="${MCP_DAEMON_HOST:-127.0.0.1}"
       export MCP_DAEMON_PORT="${MCP_DAEMON_PORT:-8006}"
       export MCP_DAEMON_URL="${MCP_DAEMON_URL:-http://${MCP_DAEMON_HOST}:${MCP_DAEMON_PORT}}"
-      export MCP_INTERNAL_BASE_URL="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}/api/v2}"
+      export MCP_INTERNAL_BASE_URL="${MCP_INTERNAL_BASE_URL:-http://127.0.0.1:${SERVER_PORT:-8080}}"
       echo "Starting MCP daemon at $MCP_DAEMON_URL"
       cd "$MCP_DAEMON_DIR"
       exec "$(mcp_node)" dist/server.js
@@ -602,6 +657,14 @@ cmd_mcp() {
         printf 'ok   MCP daemon health\n'
       else
         printf 'warn MCP daemon health unavailable at %s\n' "$(mcp_url)"
+      fi
+      if [ -f "$SYSTEM_MCP_DAEMON_DIR/build/index.js" ]; then
+        printf 'ok   system MCP daemon files\n'
+        if command -v curl >/dev/null 2>&1 && curl -fsS "$(system_mcp_url)/health" >/dev/null 2>&1; then
+          printf 'ok   system MCP daemon health\n'
+        else
+          printf 'warn system MCP daemon health unavailable at %s\n' "$(system_mcp_url)"
+        fi
       fi
       return "$failures"
       ;;

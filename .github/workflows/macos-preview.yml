@@ -1,0 +1,81 @@
+name: macOS Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version string to stamp into the preview archive"
+        required: false
+        default: "0.1.0-macos-preview"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS Preview
+    runs-on: macos-14
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: bcmath, curl, dom, mbstring, pdo_mysql, pdo_pgsql, pdo_sqlite, soap, sqlite3
+          coverage: none
+          tools: composer:v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check out MCP package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-mcp-server
+          path: .build/df-mcp-server-source
+
+      - name: Check out quickstart system package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-system
+          ref: feature/quickstart-install-type
+          path: .build/df-system-source
+
+      - name: Check out quickstart Admin UI package
+        uses: actions/checkout@v4
+        with:
+          repository: dreamfactorysoftware/df-admin-interface
+          ref: feature/quickstart-binary-onboarding
+          path: .build/df-admin-interface-source
+
+      - name: Build macOS archive
+        env:
+          VERSION: ${{ inputs.version }}
+          INCLUDE_MCP: "true"
+          MCP_PACKAGE_DIR: ${{ github.workspace }}/.build/df-mcp-server-source
+          LOCAL_DF_SYSTEM_DIR: ${{ github.workspace }}/.build/df-system-source
+          LOCAL_DF_ADMIN_INTERFACE_DIR: ${{ github.workspace }}/.build/df-admin-interface-source
+        run: ./build-macos.sh
+
+      - name: Smoke test macOS archive
+        run: ./smoke-binary.sh "$(find dist -maxdepth 1 -name 'dreamfactory-quickstart-darwin-*.tar.gz' | sort | head -1)"
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dreamfactory-quickstart-darwin-preview
+          path: |
+            dist/dreamfactory-quickstart-darwin-*.tar.gz
+            dist/SHA256SUMS

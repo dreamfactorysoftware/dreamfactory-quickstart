@@ -20,18 +20,20 @@ CONTAINER_NAME="dreamfactory-quickstart-static-tmp"
 BINARY_SRC="/go/src/app/dist/frankenphp-linux-x86_64"
 ODBC_SRC="/go/src/app/dist/odbc-runtime"
 MCP_DAEMON_SRC="/go/src/app/dist/mcp-daemon"
+SYSTEM_MCP_DAEMON_SRC="/go/src/app/dist/system-mcp-daemon"
 NODE_RUNTIME_SRC="/go/src/app/dist/node-runtime"
 BINARY_DST="$DIST_DIR/dreamfactory-linux-x86_64"
 LOCAL_PACKAGES_DIR="$SCRIPT_DIR/.build/local-packages"
 
 BRANCH="${BRANCH:-7.7.0}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
-VERSION="${VERSION:-0.1.6-mcp}"
+VERSION="${VERSION:-0.1.7-preview}"
 PLATFORM="${PLATFORM:-linux-x86_64}"
 SKIP_DOCKER_BUILD="${SKIP_DOCKER_BUILD:-false}"
 NO_CACHE_FILTER="${NO_CACHE_FILTER:-}"
 INCLUDE_MCP="${INCLUDE_MCP:-false}"
 MCP_PACKAGE_DIR="${MCP_PACKAGE_DIR:-$SCRIPT_DIR/../df-development/packages/df-mcp-server}"
+SYSTEM_MCP_PACKAGE_DIR="${SYSTEM_MCP_PACKAGE_DIR:-$SCRIPT_DIR/../df-development/packages/df-system-mcp-server}"
 INCLUDE_LOCAL_PACKAGES="${INCLUDE_LOCAL_PACKAGES:-true}"
 LOCAL_DF_SYSTEM_DIR="${LOCAL_DF_SYSTEM_DIR:-$SCRIPT_DIR/../df-development/packages/df-system}"
 LOCAL_DF_ADMIN_INTERFACE_DIR="${LOCAL_DF_ADMIN_INTERFACE_DIR:-$SCRIPT_DIR/../df-development/packages/df-admin-interface}"
@@ -55,6 +57,8 @@ echo ""
 mkdir -p "$DIST_DIR"
 rm -rf "$SCRIPT_DIR/.build/df-mcp-server"
 mkdir -p "$SCRIPT_DIR/.build/df-mcp-server"
+rm -rf "$SCRIPT_DIR/.build/df-system-mcp-server"
+mkdir -p "$SCRIPT_DIR/.build/df-system-mcp-server"
 rm -rf "$LOCAL_PACKAGES_DIR"
 mkdir -p "$LOCAL_PACKAGES_DIR"
 
@@ -100,6 +104,13 @@ if [ "$INCLUDE_MCP" = "true" ]; then
     --exclude='vendor' \
     -C "$MCP_PACKAGE_DIR" \
     -cf - . | tar -C "$SCRIPT_DIR/.build/df-mcp-server" -xf -
+  if [ -f "$SYSTEM_MCP_PACKAGE_DIR/package.json" ]; then
+    echo "Preparing system MCP daemon from $SYSTEM_MCP_PACKAGE_DIR"
+    tar --exclude='.git' --exclude='node_modules' --exclude='build' \
+      -C "$SYSTEM_MCP_PACKAGE_DIR" -cf - . | tar -C "$SCRIPT_DIR/.build/df-system-mcp-server" -xf -
+  else
+    echo "System MCP daemon not found at $SYSTEM_MCP_PACKAGE_DIR; system_mcp service type will be unavailable" >&2
+  fi
 fi
 
 # Build args
@@ -148,6 +159,8 @@ else
   docker cp "$CONTAINER_ID:$ODBC_SRC" "$DIST_DIR/odbc-runtime"
   rm -rf "$DIST_DIR/mcp-daemon" "$DIST_DIR/node-runtime"
   docker cp "$CONTAINER_ID:$MCP_DAEMON_SRC" "$DIST_DIR/mcp-daemon"
+  rm -rf "$DIST_DIR/system-mcp-daemon"
+  docker cp "$CONTAINER_ID:$SYSTEM_MCP_DAEMON_SRC" "$DIST_DIR/system-mcp-daemon"
   docker cp "$CONTAINER_ID:$NODE_RUNTIME_SRC" "$DIST_DIR/node-runtime"
   docker rm "$CONTAINER_NAME"
 fi
@@ -173,6 +186,7 @@ cp "$SCRIPT_DIR/bin/dreamfactory-ctl" "$STAGING/dreamfactory"
 cp -a "$DIST_DIR/odbc-runtime" "$STAGING/odbc"
 if [ "$INCLUDE_MCP" = "true" ]; then
   cp -a "$DIST_DIR/mcp-daemon" "$STAGING/mcp-daemon"
+  [ ! -f "$DIST_DIR/system-mcp-daemon/build/index.js" ] || cp -a "$DIST_DIR/system-mcp-daemon" "$STAGING/system-mcp-daemon"
   cp -a "$DIST_DIR/node-runtime" "$STAGING/node"
 fi
 chmod +x "$STAGING/dreamfactory" "$STAGING/frankenphp"

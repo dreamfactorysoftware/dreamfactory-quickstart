@@ -1,6 +1,6 @@
 {
   "name": "@dreamfactory/quickstart",
-  "version": "0.1.6-mcp",
+  "version": "0.1.7-preview",
   "description": "One-command DreamFactory quickstart launcher for governed API and LLM data access.",
   "keywords": [
     "dreamfactory",

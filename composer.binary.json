@@ -1,7 +1,12 @@
 {
   "name": "dreamfactory/dreamfactory-quickstart",
   "description": "DreamFactory Quickstart binary packaging for fast governed API adoption.",
-  "keywords": ["api", "dreamfactory", "rest", "database"],
+  "keywords": [
+    "api",
+    "dreamfactory",
+    "rest",
+    "database"
+  ],
   "homepage": "https://www.dreamfactory.com/",
   "license": "Apache-2.0",
   "type": "project",
@@ -43,6 +48,14 @@
     {
       "type": "vcs",
       "url": "https://github.com/dreamfactorysoftware/df-ai-chat.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-api-builder.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/dreamfactorysoftware/df-agents.git"
     }
   ],
   "require": {
@@ -51,20 +64,22 @@
     "laravel/helpers": "^1.8",
     "laravel/tinker": "^3.0",
     "symfony/css-selector": "^7.4",
-    "dreamfactory/df-core": "~1.0.17",
+    "dreamfactory/df-core": "dev-develop#e9f13bb990c85be07eeb9773b90d90d1621fc646 as 1.0.99",
     "dreamfactory/df-system": "~0.6.5",
     "dreamfactory/df-user": "~0.17.2",
     "dreamfactory/df-cache": "~0.13.1",
     "dreamfactory/df-apidoc": "~0.8.3",
     "dreamfactory/df-file": "~0.9.1",
-    "dreamfactory/df-sqldb": "~1.5.0",
+    "dreamfactory/df-sqldb": "dev-develop#0d0267b7aad4cba1a5d25cab6128984ede03c38a as 1.5.99",
     "dreamfactory/df-mysqldb": "~0.4.0",
-    "dreamfactory/df-sqlsrv": "~0.18.5",
+    "dreamfactory/df-sqlsrv": "dev-develop#65fa4226424e8569a58dd7132aa5c7895375faa0 as 0.18.99",
     "dreamfactory/df-rws": "~0.18.2",
     "dreamfactory/df-soap": "~0.17.3",
     "dreamfactory/df-admin-interface": "~1.7.7",
     "dreamfactory/df-ai": "~0.1.0",
-    "dreamfactory/df-ai-chat": "~0.1.0"
+    "dreamfactory/df-ai-chat": "~0.1.0",
+    "dreamfactory/df-agents": "dev-develop#d6f57b30e35fde0912e9ba48ba10e425e3c73f51 as 0.1.99",
+    "dreamfactory/df-api-builder": "~0.1.1"
   },
   "conflict": {
     "symfony/cache": ">=8.0",
@@ -102,10 +117,14 @@
   },
   "extra": {
     "installer-paths": {
-      "public/{$name}/": ["type:dreamfactory-app"]
+      "public/{$name}/": [
+        "type:dreamfactory-app"
+      ]
     },
     "laravel": {
-      "dont-discover": ["mongodb/laravel-mongodb"]
+      "dont-discover": [
+        "mongodb/laravel-mongodb"
+      ]
     }
   },
   "scripts": {
@@ -115,7 +134,9 @@
     ]
   },
   "config": {
-    "platform": { "php": "8.3" },
+    "platform": {
+      "php": "8.3"
+    },
     "preferred-install": "dist",
     "sort-packages": true,
     "optimize-autoloader": true,
